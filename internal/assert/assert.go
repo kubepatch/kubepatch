@@ -31,9 +31,8 @@ import (
 )
 
 type CmdOptions struct {
-	File     string
-	Retries  int
-	Interval time.Duration
+	File    string
+	Timeout time.Duration
 }
 
 type RunOptions struct {
@@ -58,15 +57,11 @@ func k() (*rest.Config, error) {
 
 func Run(opts *RunOptions) error {
 	cmdOptions := opts.Cmd
-	timeout := time.Duration(cmdOptions.Retries) * cmdOptions.Interval
 
 	ns := "default"
 	if opts.ConfigFlags.Namespace != nil && *opts.ConfigFlags.Namespace != "" {
 		ns = *opts.ConfigFlags.Namespace
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 
 	// load assertions
 	assertions, err := loadAssertions(cmdOptions.File)
@@ -98,12 +93,15 @@ func Run(opts *RunOptions) error {
 
 	allPass := true
 	for _, a := range assertions {
-		err := wait.PollUntilContextTimeout(ctx, cmdOptions.Interval, timeout, true, func(ctx context.Context) (bool, error) {
-			return evaluateAssertion(context.Background(), dyn, mapper, a, ns)
+		ctx, cancel := context.WithTimeout(context.Background(), cmdOptions.Timeout)
+		err := wait.PollUntilContextTimeout(ctx, 5*time.Second, cmdOptions.Timeout, true, func(ctx context.Context) (bool, error) {
+			return evaluateAssertion(ctx, dyn, mapper, a, ns)
 		})
+		cancel()
+
 		if err != nil {
 			allPass = false
-			fmt.Printf("❌ %s [%s]: %v\n", a.Assert, effectiveNamespace(a, ns), err)
+			fmt.Printf("❌ [%s] %s: failed\n", effectiveNamespace(a, ns), a.Assert)
 		}
 	}
 
@@ -113,17 +111,6 @@ func Run(opts *RunOptions) error {
 
 	fmt.Println("✅ All assertions passed")
 	return nil
-}
-
-func getKubeConfigNamespace() string {
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	overrides := &clientcmd.ConfigOverrides{}
-	cfg := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides)
-	ns, _, err := cfg.Namespace()
-	if err != nil {
-		return "default"
-	}
-	return ns
 }
 
 func loadAssertions(path string) ([]Assertion, error) {
@@ -145,6 +132,8 @@ func parseKindName(s string) (string, string, error) {
 }
 
 func evaluateAssertion(ctx context.Context, dyn dynamic.Interface, mapper meta.RESTMapper, a Assertion, cliNS string) (bool, error) {
+	ns := effectiveNamespace(a, cliNS)
+
 	kind, namePattern, err := parseKindName(a.Assert)
 	if err != nil {
 		return false, err
@@ -154,7 +143,7 @@ func evaluateAssertion(ctx context.Context, dyn dynamic.Interface, mapper meta.R
 	if err != nil {
 		return false, fmt.Errorf("unable to map kind: %w", err)
 	}
-	ns := effectiveNamespace(a, cliNS)
+
 	res := dyn.Resource(gvr).Namespace(ns)
 
 	list, err := res.List(ctx, metav1.ListOptions{})
@@ -168,10 +157,12 @@ func evaluateAssertion(ctx context.Context, dyn dynamic.Interface, mapper meta.R
 			found++
 			val, ok, _ := unstructured.NestedFieldCopy(item.Object, strings.Split(a.Field, ".")...)
 			if !ok {
-				return false, fmt.Errorf("%s: field %s not found", item.GetName(), a.Field)
+				// Field not found — could be temporary (e.g., pod status not yet populated)
+				return false, nil // fmt.Errorf("%s: field %s not found", item.GetName(), a.Field)
 			}
 			if !equals(val, a.Equals) {
-				return false, fmt.Errorf("%s: %s = %v (expected %v)", item.GetName(), a.Field, val, a.Equals)
+				fmt.Fprintf(os.Stderr, "waiting: %s %s = %v (expected %v)\n", item.GetName(), a.Field, val, a.Equals)
+				return false, nil // fmt.Errorf("%s: %s = %v (expected %v)", item.GetName(), a.Field, val, a.Equals)
 			}
 			fmt.Printf("✔ [%s] %s/%s: %s = %v\n", ns, gvr.Resource, item.GetName(), a.Field, val)
 		}

@@ -1,12 +1,11 @@
 package cmd
 
 import (
-	"time"
-
 	"github.com/hashmap-kz/kassert/internal/assert"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"time"
 )
 
 func NewAssertCmd(streams genericiooptions.IOStreams) *cobra.Command {
@@ -28,8 +27,7 @@ func NewAssertCmd(streams genericiooptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&o.File, "file", "", "YAML file with assertions (required)")
-	cmd.Flags().IntVar(&o.Retries, "retries", 3, "Number of retries before failing")
-	cmd.Flags().DurationVar(&o.Interval, "interval", 2*time.Second, "Polling interval")
+	cmd.Flags().DurationVar(&o.Timeout, "timeout", 1*time.Minute, "Polling interval")
 	_ = cmd.MarkFlagRequired("file")
 
 	cfgFlags.AddFlags(cmd.Flags())
