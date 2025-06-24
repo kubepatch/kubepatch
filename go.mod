@@ -1,4 +1,4 @@
-module github.com/hashmap-kz/kassert
+module github.com/hashmap-kz/kubepatch
 
 go 1.24.1
 
