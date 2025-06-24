@@ -1,4 +1,4 @@
-APP_NAME 	 := kassert
+APP_NAME 	 := kpatch
 OUTPUT   	 := $(APP_NAME)
 COV_REPORT 	 := coverage.txt
 TEST_FLAGS 	 := -v -race -timeout 30s

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,7 +37,7 @@ func main() {
 		panic(err)
 	}
 
-	patchData, err := ioutil.ReadFile(patchFile)
+	patchData, err := os.ReadFile(patchFile)
 	if err != nil {
 		panic(err)
 	}
@@ -118,7 +117,7 @@ func loadManifests(path string) ([]map[string]interface{}, error) {
 	}
 
 	for _, file := range files {
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		if err != nil {
 			return nil, err
 		}
