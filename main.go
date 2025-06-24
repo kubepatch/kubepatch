@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -20,17 +21,22 @@ type PatchTarget struct {
 
 type PatchGroup struct {
 	Target  PatchTarget              `yaml:"target"`
+	When    string                   `yaml:"when"`
 	Patches []map[string]interface{} `yaml:"patches"`
 }
 
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Println("Usage: katomik <manifest-dir-or-file> <patches.yaml>")
+	ctxArgs := flag.String("context", "", "Comma-separated context overrides (e.g. key=val,foo=bar)")
+	flag.Parse()
+
+	args := flag.Args()
+	if len(args) != 2 {
+		fmt.Println("Usage: katomik [--context key=val,...] <manifest-dir-or-file> <patches.yaml>")
 		os.Exit(1)
 	}
 
-	manifestPath := os.Args[1]
-	patchFile := os.Args[2]
+	manifestPath := args[0]
+	patchFile := args[1]
 
 	manifests, err := loadManifests(manifestPath)
 	if err != nil {
@@ -47,27 +53,63 @@ func main() {
 		panic(err)
 	}
 
+	ctx := getEnvContext()
+	if *ctxArgs != "" {
+		overrides := strings.Split(*ctxArgs, ",")
+		for _, kv := range overrides {
+			parts := strings.SplitN(kv, "=", 2)
+			if len(parts) == 2 {
+				ctx[parts[0]] = parts[1]
+			}
+		}
+	}
+
 	for i, doc := range manifests {
 		meta := getMetadata(doc)
 		if meta == nil {
 			continue
 		}
 		for _, group := range patchGroups {
-			if group.Target.Kind == meta.Kind && group.Target.Name == meta.Name {
-				jsonData, _ := json.Marshal(doc)
-				patchJson, _ := json.Marshal(group.Patches)
-				patch, err := jsonpatch.DecodePatch(patchJson)
-				if err != nil {
-					panic(err)
-				}
-				patchedJson, err := patch.Apply(jsonData)
-				if err != nil {
-					panic(err)
-				}
-				var updated map[string]interface{}
-				_ = json.Unmarshal(patchedJson, &updated)
-				manifests[i] = updated
+			if group.Target.Kind != meta.Kind || group.Target.Name != meta.Name {
+				continue
 			}
+			if group.When != "" && !evaluateCondition(group.When, ctx) {
+				continue
+			}
+
+			rawOps := []map[string]interface{}{}
+			for _, patch := range group.Patches {
+				if cond, ok := patch["when"].(string); ok {
+					if !evaluateCondition(cond, ctx) {
+						continue
+					}
+					delete(patch, "when")
+				}
+				rawOps = append(rawOps, patch)
+			}
+
+			if len(rawOps) == 0 {
+				continue
+			}
+
+			jsonData, _ := json.Marshal(doc)
+			patchJson, _ := json.Marshal(rawOps)
+
+			if _, err := jsonpatch.DecodePatch(patchJson); err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid patch for %s/%s: %v\n", meta.Kind, meta.Name, err)
+				os.Exit(1)
+			}
+
+			patch, _ := jsonpatch.DecodePatch(patchJson)
+			patchedJson, err := patch.Apply(jsonData)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to apply patch to %s/%s: %v\n", meta.Kind, meta.Name, err)
+				os.Exit(1)
+			}
+
+			var updated map[string]interface{}
+			_ = json.Unmarshal(patchedJson, &updated)
+			manifests[i] = updated
 		}
 	}
 
@@ -136,4 +178,41 @@ func loadManifests(path string) ([]map[string]interface{}, error) {
 	}
 
 	return manifests, nil
+}
+
+func getEnvContext() map[string]string {
+	ctx := map[string]string{}
+	for _, e := range os.Environ() {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) == 2 {
+			ctx[parts[0]] = parts[1]
+		}
+	}
+	return ctx
+}
+
+func evaluateCondition(expr string, ctx map[string]string) bool {
+	expr = strings.TrimSpace(expr)
+	clauses := strings.Split(expr, "&&")
+	for _, clause := range clauses {
+		clause = strings.TrimSpace(clause)
+		if strings.Contains(clause, "!=") {
+			parts := strings.SplitN(clause, "!=", 2)
+			key := strings.TrimSpace(parts[0])
+			val := strings.Trim(strings.TrimSpace(parts[1]), "\"'")
+			if ctx[key] == val {
+				return false
+			}
+		} else if strings.Contains(clause, "==") {
+			parts := strings.SplitN(clause, "==", 2)
+			key := strings.TrimSpace(parts[0])
+			val := strings.Trim(strings.TrimSpace(parts[1]), "\"'")
+			if ctx[key] != val {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+	return true
 }
