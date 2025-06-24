@@ -1,0 +1,30 @@
+- target:
+    kind: Deployment
+    name: myapp
+  patches:
+    - op: replace
+      path: /spec/replicas
+      value: 3
+    - op: replace
+      path: /spec/template/spec/containers/0/image
+      value: "nginx:1.26"
+
+- target:
+    kind: ConfigMap
+    name: myapp-config1
+  patches:
+    - op: replace
+      path: /data/app.yaml
+      value: |
+        log_level: debug
+        port: 8080
+
+- target:
+    kind: ConfigMap
+    name: myapp-config2
+  patches:
+    - op: replace
+      path: /data/app.yaml
+      value: |
+        log_level: trace
+        port: 8081
