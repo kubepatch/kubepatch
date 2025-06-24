@@ -1,0 +1,86 @@
+- target:
+    kind: StatefulSet
+    name: postgresql
+  patches:
+    # replicaCount
+    - op: replace
+      path: /spec/replicas
+      value: 1
+
+    # updateStrategy
+    - op: add
+      path: /spec/updateStrategy
+      value:
+        type: RollingUpdate
+
+    # podManagementPolicy (only for StatefulSet, for example)
+    - op: add
+      path: /spec/podManagementPolicy
+      value: OrderedReady
+
+    # image
+    - op: replace
+      path: /spec/template/spec/containers/0/image
+      value: mailboxsq7/postgres:latest
+
+    # args
+    - op: add
+      path: /spec/template/spec/containers/0/args
+      value: ["-c", "config_file=/etc/postgresql/postgresql.conf"]
+
+    # env vars
+    - op: add
+      path: /spec/template/spec/containers/0/env
+      value:
+        - name: POSTGRES_INITDB_ARGS
+          value: "--encoding=UTF-8 --lc-collate=ru_RU.UTF-8 --lc-ctype=ru_RU.UTF-8"
+        - name: PGDATA
+          value: "/var/lib/postgresql/data/pgdata"
+        - name: TZ
+          value: Asia/Aqtau
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: postgres
+
+    # volumeMounts
+    - op: add
+      path: /spec/template/spec/containers/0/volumeMounts
+      value:
+        - name: storage
+          mountPath: /var/lib/postgresql/data
+        - name: dev-shm
+          mountPath: /dev/shm
+        - name: postgresql-conf
+          mountPath: /etc/postgresql
+        - name: postgresql-init-script
+          mountPath: /docker-entrypoint-initdb.d
+
+    # resources
+    - op: add
+      path: /spec/template/spec/containers/0/resources
+      value:
+        requests:
+          memory: "256Mi"
+          cpu: "32m"
+        limits:
+          memory: "2500Mi"
+          cpu: "2"
+
+    # volumes
+    - op: add
+      path: /spec/template/spec/volumes
+      value:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: postgres-storage
+            readOnly: false
+        - name: dev-shm
+          emptyDir:
+            medium: Memory
+        - name: postgresql-init-script
+          configMap:
+            name: postgresql-init-script
+        - name: postgresql-conf
+          configMap:
+            name: postgresql-conf
