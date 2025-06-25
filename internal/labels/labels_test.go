@@ -529,24 +529,17 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: sts
-  labels: {}
 spec:
-  selector:
-    matchLabels: {}
   template:
-    metadata:
-      labels: {}
     spec:
       topologySpreadConstraints:
-        - labelSelector:
-            matchLabels: {}
+        - labelSelector: {}
       containers:
         - name: c
           image: busybox
   volumeClaimTemplates:
     - metadata:
         name: data
-        labels: {}
       spec:
         accessModes: ["ReadWriteOnce"]
         resources:
@@ -570,9 +563,7 @@ spec:
         app: demo
     spec:
       topologySpreadConstraints:
-        - labelSelector:
-            matchLabels:
-              app: demo
+        - labelSelector: {}
       containers:
         - name: c
           image: busybox
