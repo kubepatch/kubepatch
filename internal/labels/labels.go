@@ -75,8 +75,12 @@ var labelFieldSpecs = []fieldSpec{
 
 	// NetworkPolicy
 	{Path: "spec/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
-	{Path: "spec/ingress/from/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
-	{Path: "spec/egress/to/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
+
+	{Path: "spec/ingress[]/from[]/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
+	{Path: "spec/egress[]/to[]/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
+
+	// {Path: "spec/ingress/from/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
+	// {Path: "spec/egress/to/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
 }
 
 func matchGVK(obj *unstructured.Unstructured, spec fieldSpec) bool {
@@ -101,55 +105,21 @@ func parseAPIVersion(apiVersion string) (group string, version string) {
 	return parts[0], parts[1]
 }
 
+// v2
+
+// setNestedLabels applies the given labels at the location defined by `path`.
+// It supports path components like "containers[]/env[]/valueFrom".
 func setNestedLabels(obj map[string]interface{}, path string, labels map[string]string, create bool) error {
-	segments := strings.Split(path, "/")
-	return setRecursive(obj, segments, labels, create)
+	parts := strings.Split(path, "/")
+	return applyAtPath(obj, parts, labels, create)
 }
 
-func setRecursive(m map[string]interface{}, path []string, labels map[string]string, create bool) error {
-	if len(path) == 0 {
-		return nil
-	}
-
-	seg := path[0]
-
-	// Handle arrays: segment like "volumeClaimTemplates[]"
-	if strings.HasSuffix(seg, "[]") {
-		key := strings.TrimSuffix(seg, "[]")
-		raw, ok := m[key]
+func applyAtPath(curr interface{}, parts []string, labels map[string]string, create bool) error {
+	if len(parts) == 0 {
+		// end of path, apply labels
+		node, ok := curr.(map[string]interface{})
 		if !ok {
-			if !create {
-				return nil
-			}
-			// Create empty array if allowed
-			raw = []interface{}{}
-			m[key] = raw
-		}
-		arr, ok := raw.([]interface{})
-		if !ok {
-			return fmt.Errorf("expected array at %q", key)
-		}
-		for i := range arr {
-			item, ok := arr[i].(map[string]interface{})
-			if !ok {
-				continue
-			}
-			if err := setRecursive(item, path[1:], labels, create); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	// Last segment — apply labels
-	if len(path) == 1 {
-		node, ok := m[seg].(map[string]interface{})
-		if !ok {
-			if !create {
-				return nil
-			}
-			node = map[string]interface{}{}
-			m[seg] = node
+			return fmt.Errorf("expected map at leaf, got %T", curr)
 		}
 		for k, v := range labels {
 			node[k] = v
@@ -157,14 +127,178 @@ func setRecursive(m map[string]interface{}, path []string, labels map[string]str
 		return nil
 	}
 
-	// Intermediate map key
-	child, ok := m[seg].(map[string]interface{})
-	if !ok {
-		if !create {
+	key := parts[0]
+	isList := strings.HasSuffix(key, "[]")
+	key = strings.TrimSuffix(key, "[]")
+
+	switch node := curr.(type) {
+
+	case map[string]interface{}:
+		child, found := node[key]
+
+		// create missing intermediate
+		if !found {
+			if !create {
+				return nil
+			}
+			if isList {
+				child = []interface{}{map[string]interface{}{}}
+			} else {
+				child = map[string]interface{}{}
+			}
+			node[key] = child
+		}
+
+		if isList {
+			slice, ok := child.([]interface{})
+			if !ok {
+				return fmt.Errorf("expected slice at %q, got %T", key, child)
+			}
+			for _, item := range slice {
+				if err := applyAtPath(item, parts[1:], labels, create); err != nil {
+					return err
+				}
+			}
 			return nil
 		}
-		child = map[string]interface{}{}
-		m[seg] = child
+
+		return applyAtPath(child, parts[1:], labels, create)
+
+	case []interface{}:
+		// iterate over elements (used when applying into a slice of maps)
+		for _, item := range node {
+			if err := applyAtPath(item, parts, labels, create); err != nil {
+				return err
+			}
+		}
+		return nil
+
+	default:
+		return fmt.Errorf("unexpected type at path step %q: %T", parts[0], curr)
 	}
-	return setRecursive(child, path[1:], labels, create)
 }
+
+// v1
+//func setNestedLabels(obj map[string]interface{}, path string, labels map[string]string, create bool) error {
+//	parts := strings.Split(path, "/")
+//	return walkPath(obj, parts, labels, create)
+//}
+//
+//func walkPath(node interface{}, parts []string, labels map[string]string, create bool) error {
+//	if len(parts) == 0 {
+//		if m, ok := node.(map[string]interface{}); ok {
+//			for k, v := range labels {
+//				m[k] = v
+//			}
+//			return nil
+//		}
+//		return fmt.Errorf("expected map at leaf, got %T", node)
+//	}
+//
+//	key := parts[0]
+//	isList := strings.HasSuffix(key, "[]")
+//	key = strings.TrimSuffix(key, "[]")
+//
+//	switch curr := node.(type) {
+//	case map[string]interface{}:
+//		child, ok := curr[key]
+//		if !ok {
+//			if !create {
+//				return nil
+//			}
+//			if isList {
+//				child = []interface{}{map[string]interface{}{}}
+//			} else {
+//				child = map[string]interface{}{}
+//			}
+//			curr[key] = child
+//		}
+//
+//		if isList {
+//			list, ok := child.([]interface{})
+//			if !ok {
+//				return fmt.Errorf("expected list at %q", key)
+//			}
+//			for _, item := range list {
+//				if err := walkPath(item, parts[1:], labels, create); err != nil {
+//					return err
+//				}
+//			}
+//			return nil
+//		}
+//
+//		return walkPath(child, parts[1:], labels, create)
+//
+//	default:
+//		return fmt.Errorf("unexpected type at %q: %T", key, node)
+//	}
+//}
+
+// v0
+//func setNestedLabels(obj map[string]interface{}, path string, labels map[string]string, create bool) error {
+//	segments := strings.Split(path, "/")
+//	return setRecursive(obj, segments, labels, create)
+//}
+//
+//func setRecursive(m map[string]interface{}, path []string, labels map[string]string, create bool) error {
+//	if len(path) == 0 {
+//		return nil
+//	}
+//
+//	seg := path[0]
+//
+//	// Handle arrays: segment like "volumeClaimTemplates[]"
+//	if strings.HasSuffix(seg, "[]") {
+//		key := strings.TrimSuffix(seg, "[]")
+//		raw, ok := m[key]
+//		if !ok {
+//			if !create {
+//				return nil
+//			}
+//			// Create empty array if allowed
+//			raw = []interface{}{}
+//			m[key] = raw
+//		}
+//		arr, ok := raw.([]interface{})
+//		if !ok {
+//			return fmt.Errorf("expected array at %q", key)
+//		}
+//		for i := range arr {
+//			item, ok := arr[i].(map[string]interface{})
+//			if !ok {
+//				continue
+//			}
+//			if err := setRecursive(item, path[1:], labels, create); err != nil {
+//				return err
+//			}
+//		}
+//		return nil
+//	}
+//
+//	// Last segment — apply labels
+//	if len(path) == 1 {
+//		node, ok := m[seg].(map[string]interface{})
+//		if !ok {
+//			if !create {
+//				return nil
+//			}
+//			node = map[string]interface{}{}
+//			m[seg] = node
+//		}
+//		for k, v := range labels {
+//			node[k] = v
+//		}
+//		return nil
+//	}
+//
+//	// Intermediate map key
+//	child, ok := m[seg].(map[string]interface{})
+//	if !ok {
+//		if !create {
+//			return nil
+//		}
+//		child = map[string]interface{}{}
+//		m[seg] = child
+//	}
+//	return setRecursive(child, path[1:], labels, create)
+//}
