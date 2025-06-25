@@ -1,21 +1,23 @@
 image:
-	@cd restapiapp && bash build.sh
+	@cd restapiapp && bash build.sh > /dev/null 2>&1
 
-dev:
-	@go run "../../main.go" patch -f manifests -p patches-dev.yaml
+binary:
+	@cd ../../ && make install > /dev/null 2>&1
 
-prod:
-	@go run "../../main.go" patch -f manifests -p patches-prod.yaml
+dev: binary
+	@kubepatch patch -f manifests -p patches-dev.yaml
 
-dev-deploy: image
-	@go run "../../main.go" patch -f manifests -p patches-dev.yaml | kubectl apply -f -
+prod: binary
+	@kubepatch patch -f manifests -p patches-prod.yaml
 
-prod-deploy: image
-	@go run "../../main.go" patch -f manifests -p patches-prod.yaml | kubectl apply -f -
+dev-deploy: binary image
+	@kubepatch patch -f manifests -p patches-dev.yaml | kubectl apply -f -
+
+prod-deploy: binary image
+	@kubepatch patch -f manifests -p patches-prod.yaml | kubectl apply -f -
 
 ping-dev:
 	@curl --location 'http://localhost:30265/status'
 
 ping-prod:
 	@curl --location 'http://localhost:30266/status'
-
