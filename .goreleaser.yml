@@ -71,7 +71,7 @@ nfpms:
   - file_name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     maintainer: alexey.zh
     homepage: "https://github.com/hashmap-kz/kubepatch"
-    description: "Patch-based Kubernetes deployments with plain YAML and zero templating"
+    description: "Patch-based, environment-aware Kubernetes deployments using plain YAML and zero templating"
     license: "Apache-2.0"
     formats:
       - deb

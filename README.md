@@ -1,8 +1,6 @@
 # kubepatch
 
-**Kubernetes deployment layering without templates — use plain YAML manifests and clean, declarative patch overlays for
-simple, predictable, environment-specific configuration.**
-
+**Patch-based, environment-aware Kubernetes deployments using plain YAML and zero templating**
 
 ---
 
