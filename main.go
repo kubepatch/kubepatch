@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,11 @@ type PatchGroup struct {
 	Patches []map[string]interface{} `yaml:"patches"`
 }
 
+type FullPatchFile struct {
+	Labels  map[string]string `yaml:"labels"`
+	Patches []PatchGroup      `yaml:"patches"`
+}
+
 func main() {
 	ctxArgs := flag.String("context", "", "Comma-separated context overrides (e.g. key=val,foo=bar)")
 	flag.Parse()
@@ -36,20 +42,20 @@ func main() {
 	}
 
 	manifestPath := args[0]
-	patchFile := args[1]
+	patchFilePath := args[1]
 
 	manifests, err := loadManifests(manifestPath)
 	if err != nil {
 		panic(err)
 	}
 
-	patchData, err := os.ReadFile(patchFile)
+	patchData, err := os.ReadFile(patchFilePath)
 	if err != nil {
 		panic(err)
 	}
 
-	var patchGroups []PatchGroup
-	if err := yaml.Unmarshal(patchData, &patchGroups); err != nil {
+	var patchFile FullPatchFile
+	if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
 		panic(err)
 	}
 
@@ -64,12 +70,18 @@ func main() {
 		}
 	}
 
+	if len(patchFile.Labels) > 0 {
+		for _, doc := range manifests {
+			applyCommonLabels(doc, patchFile.Labels)
+		}
+	}
+
 	for i, doc := range manifests {
 		meta := getMetadata(doc)
 		if meta == nil {
 			continue
 		}
-		for _, group := range patchGroups {
+		for _, group := range patchFile.Patches {
 			if group.Target.Kind != meta.Kind || group.Target.Name != meta.Name {
 				continue
 			}
@@ -215,4 +227,169 @@ func evaluateCondition(expr string, ctx map[string]string) bool {
 		}
 	}
 	return true
+}
+
+// labels
+
+type FieldSpec struct {
+	Path    string
+	Group   string
+	Kind    string
+	Version string
+	Create  bool
+}
+
+var labelFieldSpecs = []FieldSpec{
+	// Base metadata.labels
+	{Path: "metadata/labels", Create: true},
+
+	// Workload templates
+	{Path: "spec/template/metadata/labels", Create: true, Kind: "ReplicationController", Version: "v1"},
+	{Path: "spec/template/metadata/labels", Create: true, Kind: "Deployment"},
+	{Path: "spec/template/metadata/labels", Create: true, Kind: "ReplicaSet"},
+	{Path: "spec/template/metadata/labels", Create: true, Kind: "DaemonSet"},
+	{Path: "spec/template/metadata/labels", Create: true, Kind: "StatefulSet", Group: "apps"},
+	{Path: "spec/volumeClaimTemplates[]/metadata/labels", Create: true, Kind: "StatefulSet", Group: "apps"},
+	{Path: "spec/template/metadata/labels", Create: true, Kind: "Job", Group: "batch"},
+	{Path: "spec/jobTemplate/metadata/labels", Create: true, Kind: "CronJob", Group: "batch"},
+	{Path: "spec/jobTemplate/spec/template/metadata/labels", Create: true, Kind: "CronJob", Group: "batch"},
+
+	// Selectors
+	{Path: "spec/selector", Create: true, Kind: "Service", Version: "v1"},
+	{Path: "spec/selector", Create: true, Kind: "ReplicationController", Version: "v1"},
+	{Path: "spec/selector/matchLabels", Create: true, Kind: "Deployment"},
+	{Path: "spec/selector/matchLabels", Create: true, Kind: "ReplicaSet"},
+	{Path: "spec/selector/matchLabels", Create: true, Kind: "DaemonSet"},
+	{Path: "spec/selector/matchLabels", Create: true, Kind: "StatefulSet", Group: "apps"},
+	{Path: "spec/selector/matchLabels", Create: false, Kind: "Job", Group: "batch"},
+	{Path: "spec/jobTemplate/spec/selector/matchLabels", Create: false, Kind: "CronJob", Group: "batch"},
+	{Path: "spec/selector/matchLabels", Create: false, Kind: "PodDisruptionBudget", Group: "policy"},
+
+	// Affinity & spread constraints
+	{Path: "spec/template/spec/affinity/podAffinity/preferredDuringSchedulingIgnoredDuringExecution/podAffinityTerm/labelSelector/matchLabels", Create: false, Kind: "Deployment", Group: "apps"},
+	{Path: "spec/template/spec/affinity/podAffinity/requiredDuringSchedulingIgnoredDuringExecution/labelSelector/matchLabels", Create: false, Kind: "Deployment", Group: "apps"},
+	{Path: "spec/template/spec/affinity/podAntiAffinity/preferredDuringSchedulingIgnoredDuringExecution/podAffinityTerm/labelSelector/matchLabels", Create: false, Kind: "Deployment", Group: "apps"},
+	{Path: "spec/template/spec/affinity/podAntiAffinity/requiredDuringSchedulingIgnoredDuringExecution/labelSelector/matchLabels", Create: false, Kind: "Deployment", Group: "apps"},
+	{Path: "spec/template/spec/topologySpreadConstraints/labelSelector/matchLabels", Create: false, Kind: "Deployment", Group: "apps"},
+
+	{Path: "spec/template/spec/affinity/podAffinity/preferredDuringSchedulingIgnoredDuringExecution/podAffinityTerm/labelSelector/matchLabels", Create: false, Kind: "StatefulSet", Group: "apps"},
+	{Path: "spec/template/spec/affinity/podAffinity/requiredDuringSchedulingIgnoredDuringExecution/labelSelector/matchLabels", Create: false, Kind: "StatefulSet", Group: "apps"},
+	{Path: "spec/template/spec/affinity/podAntiAffinity/preferredDuringSchedulingIgnoredDuringExecution/podAffinityTerm/labelSelector/matchLabels", Create: false, Kind: "StatefulSet", Group: "apps"},
+	{Path: "spec/template/spec/affinity/podAntiAffinity/requiredDuringSchedulingIgnoredDuringExecution/labelSelector/matchLabels", Create: false, Kind: "StatefulSet", Group: "apps"},
+	{Path: "spec/template/spec/topologySpreadConstraints/labelSelector/matchLabels", Create: false, Kind: "StatefulSet", Group: "apps"},
+
+	// NetworkPolicy
+	{Path: "spec/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
+	{Path: "spec/ingress/from/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
+	{Path: "spec/egress/to/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
+}
+
+func matchGVK(obj map[string]interface{}, spec FieldSpec) bool {
+	kind, ok := obj["kind"].(string)
+	if !ok || kind != spec.Kind {
+		return false
+	}
+
+	apiVersion, _ := obj["apiVersion"].(string)
+	if apiVersion == "" {
+		return false
+	}
+
+	group, version := parseAPIVersion(apiVersion)
+	if spec.Group != "" && group != spec.Group {
+		return false
+	}
+	if spec.Version != "" && version != spec.Version {
+		return false
+	}
+
+	return true
+}
+
+func parseAPIVersion(apiVersion string) (group string, version string) {
+	parts := strings.Split(apiVersion, "/")
+	if len(parts) == 1 {
+		return "", parts[0] // core group
+	}
+	return parts[0], parts[1]
+}
+
+func setNestedLabels(obj map[string]interface{}, path string, labels map[string]string, create bool) error {
+	segments := strings.Split(path, "/")
+	return setRecursive(obj, segments, labels, create)
+}
+
+func setRecursive(m map[string]interface{}, path []string, labels map[string]string, create bool) error {
+	if len(path) == 0 {
+		return nil
+	}
+
+	seg := path[0]
+
+	// Handle arrays: segment like "volumeClaimTemplates[]"
+	if strings.HasSuffix(seg, "[]") {
+		key := strings.TrimSuffix(seg, "[]")
+		raw, ok := m[key]
+		if !ok {
+			if !create {
+				return nil
+			}
+			// Create empty array if allowed
+			raw = []interface{}{}
+			m[key] = raw
+		}
+		arr, ok := raw.([]interface{})
+		if !ok {
+			return fmt.Errorf("expected array at %q", key)
+		}
+		for i := range arr {
+			item, ok := arr[i].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if err := setRecursive(item, path[1:], labels, create); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// Last segment — apply labels
+	if len(path) == 1 {
+		node, ok := m[seg].(map[string]interface{})
+		if !ok {
+			if !create {
+				return nil
+			}
+			node = map[string]interface{}{}
+			m[seg] = node
+		}
+		for k, v := range labels {
+			node[k] = v
+		}
+		return nil
+	}
+
+	// Intermediate map key
+	child, ok := m[seg].(map[string]interface{})
+	if !ok {
+		if !create {
+			return nil
+		}
+		child = map[string]interface{}{}
+		m[seg] = child
+	}
+	return setRecursive(child, path[1:], labels, create)
+}
+
+func applyCommonLabels(obj map[string]interface{}, labels map[string]string) {
+	for _, spec := range labelFieldSpecs {
+		if !matchGVK(obj, spec) {
+			continue
+		}
+		err := setNestedLabels(obj, spec.Path, labels, spec.Create)
+		if err != nil {
+			log.Printf("label injection failed for path %q: %v", spec.Path, err)
+		}
+	}
 }
