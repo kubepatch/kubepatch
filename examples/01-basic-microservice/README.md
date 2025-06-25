@@ -16,18 +16,18 @@ make binary
 ######################################################################
 
 # render manifests with applying 'dev' patch-set (just debug to stdout)
-make dev
+make dev-render
 
 # render manifests with applying 'prod' patch-set (just debug to stdout)
-make prod
+make prod-render
 
 # deploy patched manifests for 'dev' environment
 make dev-deploy
 
 # deploy patched manifests for 'prod' environment
-make prod
+make prod-deploy
 
 # just curl running apps
-make ping-dev
-make ping-prod
+make dev-ping
+make prod-ping
 ```
