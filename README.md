@@ -1,80 +1,21 @@
 # kubepatch
 
-**Zero-magic, fully declarative Kubernetes deployment layering.**
+**Kubernetes deployment layering without templates — use plain YAML manifests and clean, declarative patch overlays for
+simple, predictable, environment-specific configuration.**
 
-`kubepatch` is a minimalistic patch-based tool to manage environment-specific Kubernetes deployments 
-using **only JSON patches**. No templating. No DSL. No tricky preprocessors.
 
 ---
 
-## 🔍 Why kubepatch?
+## 🎯 Why kubepatch?
 
-Unlike tools that embed logic into YAML or require custom template languages, `kubepatch` keeps 
+Unlike tools that embed logic into YAML or require custom template languages, `kubepatch` keeps
 your **base manifests clean and idiomatic**.
 
-* ✅ No templates, DSLs, or logic in YAML
-* ✅ No string substitutions or regex hacks
-* ✅ Only native Kubernetes YAML manifests - readable, valid, untouched
-* ✅ Patch logic is externalized and explicit via JSON Patch (RFC 6902)
-* ✅ Cross-environment deployment with predictable, understandable changes
-
----
-
-## ✨ Key Features
-
-### 🔧 JSON Patch Only
-
-Patches are applied using [JSON Patch](https://tools.ietf.org/html/rfc6902):
-
-```yaml
-- op: replace
-  path: /spec/replicas
-  value: 1
-```
-
-Every patch is minimal, explicit, and easy to understand. No string manipulation or text templating involved.
-
-### 📦 Plain Kubernetes YAML Manifests
-
-Your base manifests are 100% pure Kubernetes objects - no logic, no annotations, no overrides, no preprocessing. This
-ensures:
-
-* Easy editing
-* Compatibility with other tools
-* Clean Git diffs
-
-### 🌍 Cross-Environment Deploys
-
-Deploy to `dev`, `staging`, or `prod` just by selecting the right set of patches. All logic lives in patch files, not
-your base manifests.
-
-### 🏷️ Common Labels Support
-
-Inject common labels (like `env`, `team`, `app`), including deep paths like pod templates and selectors.
-
-### 🔐 Env Var Substitution (in Patch Values Only)
-
-You can inject secrets and configuration values directly into patch files:
-
-```yaml
-- op: add
-  path: /spec/template/spec/containers/0/env
-  value:
-    - name: PGPASSWORD
-      value: ${IAM_SERVICE_PGPASS}
-```
-
-Strict env-var substitution is only allowed inside patches - never in base manifests.
-
----
-
-## 🎯 Project Goals
-
-* **Simple**: Easy to understand, zero magic.
-* **Predictable**: What you patch is what you get - no surprises.
-* **Safe**: Base manifests remain untouched and readable.
-* **Layered**: All environment-specific logic is in patch sets.
-* **Declarative**: Follows Kubernetes philosophy.
+* **Simple**: No templates, DSLs, or logic in YAML, zero magic
+* **Predictable**: No string substitutions or regex hacks
+* **Safe**: Only native Kubernetes YAML manifests - readable, valid, untouched
+* **Layered**: Patch logic is externalized and explicit via JSON Patch (RFC 6902)
+* **Declarative**: Cross-environment deployment with predictable, understandable changes
 
 ---
 
@@ -185,14 +126,6 @@ patches:
       kind: Deployment
       name: myapp
     patches:
-      - op: replace
-        path: /spec/replicas
-        value: 1
-
-      - op: replace
-        path: /spec/template/spec/containers/0/image
-        value: "localhost:5000/restapiapp:1.22"
-
       - op: add
         path: /spec/template/spec/containers/0/env
         value:
@@ -213,13 +146,57 @@ patches:
 
 Apply the appropriate patch set based on the target environment.
 
+```bash
+kubepatch patch -f base/ -p patches/dev.yaml | kubectl apply -f -
+```
+
 ---
 
-## 🚀 Try it Out
+## ✨ Key Features
 
-```bash
-kubepatch render -f base/ -p patches/dev.yaml | kubectl apply -f -
+### JSON Patch Only
+
+Patches are applied using [JSON Patch](https://tools.ietf.org/html/rfc6902):
+
+```yaml
+- op: replace
+  path: /spec/replicas
+  value: 1
 ```
+
+Every patch is minimal, explicit, and easy to understand. No string manipulation or text templating involved.
+
+### Plain Kubernetes YAML Manifests
+
+Your base manifests are 100% pure Kubernetes objects - no logic, no annotations, no overrides, no preprocessing. This
+ensures:
+
+* Easy editing
+* Compatibility with other tools
+* Clean Git diffs
+
+### Cross-Environment Deploys
+
+Deploy to `dev`, `staging`, or `prod` just by selecting the right set of patches. All logic lives in patch files, not
+your base manifests.
+
+### Common Labels Support
+
+Inject common labels (like `env`, `team`, `app`), including deep paths like pod templates and selectors.
+
+### Env Var Substitution (in Patch Values Only)
+
+You can inject secrets and configuration values directly into patch files:
+
+```yaml
+- op: add
+  path: /spec/template/spec/containers/0/env
+  value:
+    - name: PGPASSWORD
+      value: ${IAM_SERVICE_PGPASS}
+```
+
+Strict env-var substitution (prefix-based) is only allowed inside patches - never in base manifests.
 
 ---
 
