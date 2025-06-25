@@ -1,7 +1,10 @@
-dev:
+image:
+	@cd restapiapp && bash build.sh
+
+dev: image
 	@go run "../../main.go" manifests patches-dev.yaml
 
-prod:
+prod: image
 	@go run "../../main.go" manifests patches-prod.yaml
 
 ping-dev:
