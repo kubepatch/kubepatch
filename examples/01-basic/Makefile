@@ -1,23 +1,19 @@
 image:
 	@cd restapiapp && bash build.sh > /dev/null 2>&1
-
 binary:
 	@cd ../../ && make install > /dev/null 2>&1
 
-dev:
+dev-render:
 	@kubepatch patch -f manifests -p patches-dev.yaml
-
-prod:
+prod-render:
 	@kubepatch patch -f manifests -p patches-prod.yaml
 
 dev-deploy:
 	@kubepatch patch -f manifests -p patches-dev.yaml | kubectl apply -f -
-
 prod-deploy:
 	@kubepatch patch -f manifests -p patches-prod.yaml | kubectl apply -f -
 
-ping-dev:
+dev-ping:
 	@curl --location 'http://localhost:30265/status'
-
-ping-prod:
+prod-ping:
 	@curl --location 'http://localhost:30266/status'
