@@ -385,7 +385,10 @@ func setRecursive(m map[string]interface{}, path []string, labels map[string]str
 func applyCommonLabels(obj map[string]interface{}, labels map[string]string) {
 	for _, spec := range labelFieldSpecs {
 		if !matchGVK(obj, spec) {
-			continue
+			// special case for ALL objects
+			if spec.Path != "metadata/labels" {
+				continue
+			}
 		}
 		err := setNestedLabels(obj, spec.Path, labels, spec.Create)
 		if err != nil {

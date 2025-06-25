@@ -32,6 +32,9 @@ patches:
       kind: Service
       name: myapp
     patches:
+      - op: replace
+        path: /metadata/name
+        value: myapp-dev
       - op: add
         path: /spec/ports/0/nodePort
         value: 30265

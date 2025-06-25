@@ -7,7 +7,7 @@
           "request": "launch",
           "mode": "debug",
           "program": "${workspaceFolder}/main.go",
-          "args": [],
+          "args": [ "examples/01-basic/manifests", "examples/01-basic/patches-dev.yaml" ],
           "env": {},
           "console": "integratedTerminal"
       }
