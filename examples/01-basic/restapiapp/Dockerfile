@@ -1,9 +1,6 @@
-FROM golang:1.24-bookworm AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
-
-COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/root/go-build go mod download
 
 COPY . .
 

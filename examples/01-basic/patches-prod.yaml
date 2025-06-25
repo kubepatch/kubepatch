@@ -1,7 +1,7 @@
 # deployment
 - target:
     kind: Deployment
-    name: nginx
+    name: myapp
   patches:
     - op: replace
       path: /spec/replicas
@@ -32,8 +32,8 @@
 # service
 - target:
     kind: Service
-    name: nginx
+    name: myapp
   patches:
     - op: add
       path: /spec/ports/0/nodePort
-      value: "30265"
+      value: 30266
