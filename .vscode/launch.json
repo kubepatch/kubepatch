@@ -1,15 +1,21 @@
 {
   "version": "0.2.0",
   "configurations": [
-      {
-          "name": "Debug Application",
-          "type": "go",
-          "request": "launch",
-          "mode": "debug",
-          "program": "${workspaceFolder}/main.go",
-          "args": [],
-          "env": {},
-          "console": "integratedTerminal"
-      }
+    {
+      "name": "Debug Application",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/main.go",
+      "args": [
+        "patch",
+        "-f",
+        "examples/01-basic/manifests",
+        "-p",
+        "examples/01-basic/patches-dev.yaml"
+      ],
+      "env": {},
+      "console": "integratedTerminal"
+    }
   ]
 }

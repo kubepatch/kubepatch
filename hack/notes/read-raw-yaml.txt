@@ -1,0 +1,60 @@
+type Metadata struct {
+	Kind string
+	Name string
+}
+
+func getMetadata(obj map[string]interface{}) *Metadata {
+	kind, _ := obj["kind"].(string)
+	meta, ok := obj["metadata"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	name, _ := meta["name"].(string)
+	return &Metadata{Kind: kind, Name: name}
+}
+
+func loadManifests(path string) ([]map[string]interface{}, error) {
+	var manifests []map[string]interface{}
+	files := []string{}
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if fi.IsDir() {
+		err := filepath.Walk(path, func(p string, info fs.FileInfo, err error) error {
+			if err != nil || info.IsDir() || !strings.HasSuffix(p, ".yaml") {
+				return nil
+			}
+			files = append(files, p)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		files = append(files, path)
+	}
+
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+		yamlDocs := bytes.Split(data, []byte("---"))
+		for _, doc := range yamlDocs {
+			doc = bytes.TrimSpace(doc)
+			if len(doc) == 0 {
+				continue
+			}
+			var obj map[string]interface{}
+			if err := yaml.Unmarshal(doc, &obj); err != nil {
+				return nil, err
+			}
+			manifests = append(manifests, obj)
+		}
+	}
+
+	return manifests, nil
+}

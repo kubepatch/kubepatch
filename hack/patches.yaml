@@ -5,12 +5,10 @@
     - op: replace
       path: /spec/replicas
       value: 3
-      when: ENV == "prod"
 
     - op: replace
       path: /spec/template/spec/containers/0/image
       value: nginx:1.26
-      when: REGION == "eu"
 
     - op: replace
       path: /spec/template/spec/containers/0/resources
@@ -21,4 +19,3 @@
         requests:
           cpu: "250m"
           memory: "128Mi"
-      when: ENV != "dev" && REGION == "eu"
