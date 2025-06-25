@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
@@ -34,22 +32,7 @@ type FullPatchFile struct {
 	Patches []PatchGroup      `yaml:"patches"`
 }
 
-func Run(filenames []string, patchFilePath string) error {
-	manifests, err := readDocs(filenames, false)
-	if err != nil {
-		return err
-	}
-
-	patchData, err := os.ReadFile(patchFilePath)
-	if err != nil {
-		return err
-	}
-
-	var patchFile FullPatchFile
-	if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
-		return err
-	}
-
+func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) error {
 	envContext := getEnvContext()
 
 	if len(patchFile.Labels) > 0 {
@@ -109,67 +92,6 @@ func Run(filenames []string, patchFilePath string) error {
 	}
 
 	return nil
-}
-
-type Metadata struct {
-	Kind string
-	Name string
-}
-
-func getMetadata(obj map[string]interface{}) *Metadata {
-	kind, _ := obj["kind"].(string)
-	meta, ok := obj["metadata"].(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	name, _ := meta["name"].(string)
-	return &Metadata{Kind: kind, Name: name}
-}
-
-func loadManifests(path string) ([]map[string]interface{}, error) {
-	var manifests []map[string]interface{}
-	files := []string{}
-
-	fi, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-
-	if fi.IsDir() {
-		err := filepath.Walk(path, func(p string, info fs.FileInfo, err error) error {
-			if err != nil || info.IsDir() || !strings.HasSuffix(p, ".yaml") {
-				return nil
-			}
-			files = append(files, p)
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		files = append(files, path)
-	}
-
-	for _, file := range files {
-		data, err := os.ReadFile(file)
-		if err != nil {
-			return nil, err
-		}
-		yamlDocs := bytes.Split(data, []byte("---"))
-		for _, doc := range yamlDocs {
-			doc = bytes.TrimSpace(doc)
-			if len(doc) == 0 {
-				continue
-			}
-			var obj map[string]interface{}
-			if err := yaml.Unmarshal(doc, &obj); err != nil {
-				return nil, err
-			}
-			manifests = append(manifests, obj)
-		}
-	}
-
-	return manifests, nil
 }
 
 func getEnvContext() map[string]string {
@@ -372,7 +294,7 @@ func applyCommonLabels(obj *unstructured.Unstructured, labels map[string]string)
 // readDocs resolves -f arguments (or stdin '-') into a slice of decoded
 // Kubernetes objects. It expands directory globs, walks recursively if
 // requested and supports YAML documents containing multiple resources.
-func readDocs(filenames []string, recursive bool) ([]*unstructured.Unstructured, error) {
+func ReadDocs(filenames []string, recursive bool) ([]*unstructured.Unstructured, error) {
 	var allDocs []*unstructured.Unstructured
 
 	// 1. stdin mode: exactly one filename equal to "-"

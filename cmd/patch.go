@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"os"
 	"time"
 
 	"github.com/hashmap-kz/kubepatch/internal/patch"
+	"sigs.k8s.io/yaml"
 
 	"github.com/spf13/cobra"
 )
@@ -22,7 +24,24 @@ func NewPatchCmd() *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return patch.Run(opts.Filenames, opts.PatchFilePath)
+			// read manifests
+			manifests, err := patch.ReadDocs(opts.Filenames, opts.Recursive)
+			if err != nil {
+				return err
+			}
+
+			// read patches
+			patchData, err := os.ReadFile(opts.PatchFilePath)
+			if err != nil {
+				return err
+			}
+			var patchFile patch.FullPatchFile
+			if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
+				return err
+			}
+
+			// preform the job
+			return patch.Run(manifests, &patchFile)
 		},
 	}
 	cmd.Flags().StringSliceVarP(&opts.Filenames, "filename", "f", nil, "Manifest files, glob patterns, or directories to apply.")
