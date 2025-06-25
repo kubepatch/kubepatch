@@ -10,7 +10,11 @@ nodes:
     extraPortMappings:
       - containerPort: 30000
         hostPort: 30000
-      # nginx
+      # app-dev
       - containerPort: 30265
         hostPort: 30265
+        protocol: TCP
+      # app-prod
+      - containerPort: 30266
+        hostPort: 30266
         protocol: TCP

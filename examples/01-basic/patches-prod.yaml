@@ -9,7 +9,15 @@
 
     - op: replace
       path: /spec/template/spec/containers/0/image
-      value: "nginx:1.27.0"
+      value: "localhost:5000/restapiapp:1.21"
+
+    - op: add
+      path: /spec/template/spec/containers/0/env
+      value:
+        - name: RESTAPIAPP_VERSION
+          value: prod
+        - name: LOG_LEVEL
+          value: info
 
     - op: add
       path: /spec/template/spec/containers/0/resources
