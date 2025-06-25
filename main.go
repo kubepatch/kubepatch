@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -12,6 +13,9 @@ import (
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
+	"github.com/hashmap-kz/kubepatch/internal/resolve"
+	"github.com/hashmap-kz/kubepatch/internal/utils"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 )
 
@@ -32,7 +36,6 @@ type FullPatchFile struct {
 }
 
 func main() {
-	ctxArgs := flag.String("context", "", "Comma-separated context overrides (e.g. key=val,foo=bar)")
 	flag.Parse()
 
 	args := flag.Args()
@@ -44,7 +47,7 @@ func main() {
 	manifestPath := args[0]
 	patchFilePath := args[1]
 
-	manifests, err := loadManifests(manifestPath)
+	manifests, err := readDocs([]string{manifestPath}, false)
 	if err != nil {
 		panic(err)
 	}
@@ -60,15 +63,6 @@ func main() {
 	}
 
 	ctx := getEnvContext()
-	if *ctxArgs != "" {
-		overrides := strings.Split(*ctxArgs, ",")
-		for _, kv := range overrides {
-			parts := strings.SplitN(kv, "=", 2)
-			if len(parts) == 2 {
-				ctx[parts[0]] = parts[1]
-			}
-		}
-	}
 
 	if len(patchFile.Labels) > 0 {
 		for _, doc := range manifests {
@@ -77,12 +71,8 @@ func main() {
 	}
 
 	for i, doc := range manifests {
-		meta := getMetadata(doc)
-		if meta == nil {
-			continue
-		}
 		for _, group := range patchFile.Patches {
-			if group.Target.Kind != meta.Kind || group.Target.Name != meta.Name {
+			if group.Target.Kind != doc.GetKind() || group.Target.Name != doc.GetName() {
 				continue
 			}
 			if group.When != "" && !evaluateCondition(group.When, ctx) {
@@ -108,20 +98,20 @@ func main() {
 			patchJson, _ := json.Marshal(rawOps)
 
 			if _, err := jsonpatch.DecodePatch(patchJson); err != nil {
-				fmt.Fprintf(os.Stderr, "Invalid patch for %s/%s: %v\n", meta.Kind, meta.Name, err)
+				fmt.Fprintf(os.Stderr, "Invalid patch for %s/%s: %v\n", doc.GetKind(), doc.GetName(), err)
 				os.Exit(1)
 			}
 
 			patch, _ := jsonpatch.DecodePatch(patchJson)
 			patchedJson, err := patch.Apply(jsonData)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to apply patch to %s/%s: %v\n", meta.Kind, meta.Name, err)
+				fmt.Fprintf(os.Stderr, "Failed to apply patch to %s/%s: %v\n", doc.GetKind(), doc.GetName(), err)
 				os.Exit(1)
 			}
 
-			var updated map[string]interface{}
+			var updated unstructured.Unstructured
 			_ = json.Unmarshal(patchedJson, &updated)
-			manifests[i] = updated
+			manifests[i] = &updated
 		}
 	}
 
@@ -284,25 +274,17 @@ var labelFieldSpecs = []FieldSpec{
 	{Path: "spec/egress/to/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
 }
 
-func matchGVK(obj map[string]interface{}, spec FieldSpec) bool {
-	kind, ok := obj["kind"].(string)
-	if !ok || kind != spec.Kind {
+func matchGVK(obj *unstructured.Unstructured, spec FieldSpec) bool {
+	if obj.GetKind() != spec.Kind {
 		return false
 	}
-
-	apiVersion, _ := obj["apiVersion"].(string)
-	if apiVersion == "" {
-		return false
-	}
-
-	group, version := parseAPIVersion(apiVersion)
+	group, version := parseAPIVersion(obj.GetAPIVersion())
 	if spec.Group != "" && group != spec.Group {
 		return false
 	}
 	if spec.Version != "" && version != spec.Version {
 		return false
 	}
-
 	return true
 }
 
@@ -382,7 +364,7 @@ func setRecursive(m map[string]interface{}, path []string, labels map[string]str
 	return setRecursive(child, path[1:], labels, create)
 }
 
-func applyCommonLabels(obj map[string]interface{}, labels map[string]string) {
+func applyCommonLabels(obj *unstructured.Unstructured, labels map[string]string) {
 	for _, spec := range labelFieldSpecs {
 		if !matchGVK(obj, spec) {
 			// special case for ALL objects
@@ -390,9 +372,50 @@ func applyCommonLabels(obj map[string]interface{}, labels map[string]string) {
 				continue
 			}
 		}
-		err := setNestedLabels(obj, spec.Path, labels, spec.Create)
+		err := setNestedLabels(obj.Object, spec.Path, labels, spec.Create)
 		if err != nil {
 			log.Printf("label injection failed for path %q: %v", spec.Path, err)
 		}
 	}
+}
+
+// readDocs resolves -f arguments (or stdin '-') into a slice of decoded
+// Kubernetes objects. It expands directory globs, walks recursively if
+// requested and supports YAML documents containing multiple resources.
+func readDocs(filenames []string, recursive bool) ([]*unstructured.Unstructured, error) {
+	var allDocs []*unstructured.Unstructured
+
+	// 1. stdin mode: exactly one filename equal to "-"
+	if len(filenames) == 1 && filenames[0] == "-" {
+		d, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, fmt.Errorf("reading stdin: %w", err)
+		}
+		docs, err := utils.ReadObjects(bytes.NewReader(d))
+		if err != nil {
+			return nil, err
+		}
+		allDocs = append(allDocs, docs...)
+		return allDocs, nil
+	}
+
+	// 2. file paths & directories
+	files, err := resolve.ResolveAllFiles(filenames, recursive)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range files {
+		fileContent, err := resolve.ReadFileContent(file)
+		if err != nil {
+			return nil, err
+		}
+		docs, err := utils.ReadObjects(bytes.NewReader(fileContent))
+		if err != nil {
+			return nil, err
+		}
+		allDocs = append(allDocs, docs...)
+	}
+
+	return allDocs, nil
 }
