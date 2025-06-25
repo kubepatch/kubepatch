@@ -2,6 +2,15 @@
 
 **Patch-based, environment-aware Kubernetes deployments using plain YAML and zero templating**
 
+[![License](https://img.shields.io/github/license/kubepatch/kubepatch)](https://github.com/kubepatch/kubepatch/blob/master/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kubepatch/kubepatch)](https://goreportcard.com/report/github.com/kubepatch/kubepatch)
+[![Go Reference](https://pkg.go.dev/badge/github.com/kubepatch/kubepatch.svg)](https://pkg.go.dev/github.com/kubepatch/kubepatch)
+[![Workflow Status](https://img.shields.io/github/actions/workflow/status/kubepatch/kubepatch/ci.yml?branch=master)](https://github.com/kubepatch/kubepatch/actions/workflows/ci.yml?query=branch:master)
+[![GitHub Issues](https://img.shields.io/github/issues/kubepatch/kubepatch)](https://github.com/kubepatch/kubepatch/issues)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/kubepatch/kubepatch)](https://github.com/kubepatch/kubepatch/blob/master/go.mod#L3)
+[![Latest Release](https://img.shields.io/github/v/release/kubepatch/kubepatch)](https://github.com/kubepatch/kubepatch/releases/latest)
+[![Start contributing](https://img.shields.io/github/issues/kubepatch/kubepatch/good%20first%20issue?color=7057ff&label=Contribute)](https://github.com/kubepatch/kubepatch/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc+label%3A%22good+first+issue%22)
+
 ---
 
 ## 🎯 Why kubepatch?
