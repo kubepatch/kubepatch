@@ -1,11 +1,17 @@
 image:
 	@cd restapiapp && bash build.sh
 
-dev: image
-	@go run "../../main.go" manifests patches-dev.yaml
+dev:
+	@go run "../../main.go" patch -f manifests -p patches-dev.yaml
 
-prod: image
-	@go run "../../main.go" manifests patches-prod.yaml
+prod:
+	@go run "../../main.go" patch -f manifests -p patches-prod.yaml
+
+dev-deploy: image
+	@go run "../../main.go" patch -f manifests -p patches-dev.yaml | kubectl apply -f -
+
+prod-deploy: image
+	@go run "../../main.go" patch -f manifests -p patches-prod.yaml | kubectl apply -f -
 
 ping-dev:
 	@curl --location 'http://localhost:30265/status'
