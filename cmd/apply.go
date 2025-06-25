@@ -27,8 +27,11 @@ func NewPatchCmd() *cobra.Command {
 	}
 	cmd.Flags().StringSliceVarP(&opts.Filenames, "filename", "f", nil, "Manifest files, glob patterns, or directories to apply.")
 	cmd.Flags().StringVarP(&opts.PatchFilePath, "patchfile", "p", "", "Patch file")
+
 	//nolint:errcheck
 	_ = cmd.MarkFlagRequired("filename")
+	_ = cmd.MarkFlagRequired("patchfile")
+
 	cmd.Flags().BoolVarP(&opts.Recursive, "recursive", "R", false, "Recurse into directories specified with --filename.")
 	return cmd
 }
