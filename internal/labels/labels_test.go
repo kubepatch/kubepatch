@@ -63,7 +63,8 @@ func TestSetNestedLabels_NoCreate(t *testing.T) {
 	assert.NoError(t, err)
 
 	found := false
-	_, ok, _ := unstructured.NestedStringMap(obj, "spec", "template", "metadata", "labels")
+	_, ok, err := unstructured.NestedStringMap(obj, "spec", "template", "metadata", "labels")
+	assert.NoError(t, err)
 	if ok {
 		found = true
 	}
@@ -83,8 +84,8 @@ func TestSetNestedLabels_WithArray(t *testing.T) {
 	err := setNestedLabels(obj, "spec/volumeClaimTemplates[]/metadata/labels", map[string]string{"env": "prod"}, true)
 	assert.NoError(t, err)
 
-	arr := obj["spec"].(map[string]interface{})["volumeClaimTemplates"].([]interface{})
-	item := arr[0].(map[string]interface{})["metadata"].(map[string]interface{})["labels"].(map[string]interface{})
+	arr := obj["spec"].(map[string]interface{})["volumeClaimTemplates"].([]interface{})                             //nolint:errcheck
+	item := arr[0].(map[string]interface{})["metadata"].(map[string]interface{})["labels"].(map[string]interface{}) //nolint:errcheck
 	assert.Equal(t, "prod", item["env"])
 }
 
@@ -205,27 +206,32 @@ func TestApplyCommonLabels_MultiResourceTypes(t *testing.T) {
 				assert.Equal(t, "true", v)
 
 			case "StatefulSet":
-				_, found, _ := unstructured.NestedString(flat, "spec", "template", "metadata", "labels", "injected")
+				_, found, err := unstructured.NestedString(flat, "spec", "template", "metadata", "labels", "injected")
+				assert.NoError(t, err)
 				assert.True(t, found)
 
-				_, found, _ = unstructured.NestedString(flat, "spec", "selector", "matchLabels", "injected")
+				_, found, err = unstructured.NestedString(flat, "spec", "selector", "matchLabels", "injected")
+				assert.NoError(t, err)
 				assert.True(t, found)
 
 				// volumeClaimTemplates[0].metadata.injected
-				vcts, _, _ := unstructured.NestedSlice(flat, "spec", "volumeClaimTemplates")
+				vcts, _, err := unstructured.NestedSlice(flat, "spec", "volumeClaimTemplates")
+				assert.NoError(t, err)
 				if len(vcts) > 0 {
-					vct := vcts[0].(map[string]interface{})
-					_, found := vct["metadata"].(map[string]interface{})["labels"].(map[string]interface{})["injected"]
+					vct := vcts[0].(map[string]interface{})                                                             //nolint:errcheck
+					_, found := vct["metadata"].(map[string]interface{})["labels"].(map[string]interface{})["injected"] //nolint:errcheck
 					assert.True(t, found)
 				}
 
 			case "Service":
-				_, found, _ := unstructured.NestedString(flat, "spec", "selector", "injected")
+				_, found, err := unstructured.NestedString(flat, "spec", "selector", "injected")
+				assert.NoError(t, err)
 				assert.True(t, found)
 
 			case "PodDisruptionBudget":
 				// Create=false, but matchLabels exist - label should be injected
-				v, found, _ := unstructured.NestedString(flat, "spec", "selector", "matchLabels", "injected")
+				v, found, err := unstructured.NestedString(flat, "spec", "selector", "matchLabels", "injected")
+				assert.NoError(t, err)
 				assert.True(t, found)
 				assert.Equal(t, "true", v)
 			}

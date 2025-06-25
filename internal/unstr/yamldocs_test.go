@@ -20,8 +20,10 @@ metadata:
   labels:
     app: test
 `
-	r, w, _ := os.Pipe()
-	_, _ = w.WriteString(content)
+	r, w, err := os.Pipe()
+	assert.NoError(t, err)
+	_, err = w.WriteString(content)
+	assert.NoError(t, err)
 	_ = w.Close()
 	os.Stdin = r
 
@@ -76,9 +78,10 @@ metadata:
 func Test_ReadDocs_RecursiveDirScan(t *testing.T) {
 	tmp := t.TempDir()
 	sub := filepath.Join(tmp, "subdir")
-	_ = os.Mkdir(sub, 0o755)
+	err := os.Mkdir(sub, 0o755)
+	assert.NoError(t, err)
 
-	err := os.WriteFile(filepath.Join(sub, "a.yaml"), []byte(`
+	err = os.WriteFile(filepath.Join(sub, "a.yaml"), []byte(`
 apiVersion: v1
 kind: ConfigMap
 metadata:
