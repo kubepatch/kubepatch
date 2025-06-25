@@ -196,6 +196,50 @@ spec:
 
 ---
 
+## Installation
+
+### Manual Installation
+
+1. Download the latest binary for your platform from
+   the [Releases page](https://github.com/kubepatch/kubepatch/releases).
+2. Place the binary in your system's `PATH` (e.g., `/usr/local/bin`).
+
+### Installation script
+
+```bash
+(
+set -euo pipefail
+
+OS="$(uname | tr '[:upper:]' '[:lower:]')"
+ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')"
+TAG="$(curl -s https://api.github.com/repos/kubepatch/kubepatch/releases/latest | jq -r .tag_name)"
+
+curl -L "https://github.com/kubepatch/kubepatch/releases/download/${TAG}/kubepatch_${TAG}_${OS}_${ARCH}.tar.gz" |
+tar -xzf - -C /usr/local/bin && \
+chmod +x /usr/local/bin/kubepatch
+)
+```
+
+### Package-Based installation (suitable in CI/CD)
+
+#### Debian
+
+```bash
+sudo apt update -y && sudo apt install -y curl
+curl -LO https://github.com/kubepatch/kubepatch/releases/latest/download/kubepatch_linux_amd64.deb
+sudo dpkg -i kubepatch_linux_amd64.deb
+```
+
+#### Alpine Linux
+
+```bash
+apk update && apk add --no-cache bash curl
+curl -LO https://github.com/kubepatch/kubepatch/releases/latest/download/kubepatch_linux_amd64.apk
+apk add kubepatch_linux_amd64.apk --allow-untrusted
+```
+
+---
+
 ## ✨ Key Features
 
 ### JSON Patch Only
