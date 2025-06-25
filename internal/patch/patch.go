@@ -23,7 +23,6 @@ type PatchTarget struct {
 
 type PatchGroup struct {
 	Target  PatchTarget              `yaml:"target"`
-	When    string                   `yaml:"when"`
 	Patches []map[string]interface{} `yaml:"patches"`
 }
 
@@ -33,8 +32,6 @@ type FullPatchFile struct {
 }
 
 func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) error {
-	envContext := getEnvContext()
-
 	if len(patchFile.Labels) > 0 {
 		for _, doc := range manifests {
 			applyCommonLabels(doc, patchFile.Labels)
@@ -46,27 +43,9 @@ func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) error
 			if group.Target.Kind != doc.GetKind() || group.Target.Name != doc.GetName() {
 				continue
 			}
-			if group.When != "" && !evaluateCondition(group.When, envContext) {
-				continue
-			}
-
-			rawOps := []map[string]interface{}{}
-			for _, patch := range group.Patches {
-				if cond, ok := patch["when"].(string); ok {
-					if !evaluateCondition(cond, envContext) {
-						continue
-					}
-					delete(patch, "when")
-				}
-				rawOps = append(rawOps, patch)
-			}
-
-			if len(rawOps) == 0 {
-				continue
-			}
 
 			jsonData, _ := json.Marshal(doc)
-			patchJson, _ := json.Marshal(rawOps)
+			patchJson, _ := json.Marshal(group.Patches)
 
 			if _, err := jsonpatch.DecodePatch(patchJson); err != nil {
 				fmt.Fprintf(os.Stderr, "Invalid patch for %s/%s: %v\n", doc.GetKind(), doc.GetName(), err)
@@ -92,43 +71,6 @@ func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) error
 	}
 
 	return nil
-}
-
-func getEnvContext() map[string]string {
-	ctx := map[string]string{}
-	for _, e := range os.Environ() {
-		parts := strings.SplitN(e, "=", 2)
-		if len(parts) == 2 {
-			ctx[parts[0]] = parts[1]
-		}
-	}
-	return ctx
-}
-
-func evaluateCondition(expr string, ctx map[string]string) bool {
-	expr = strings.TrimSpace(expr)
-	clauses := strings.Split(expr, "&&")
-	for _, clause := range clauses {
-		clause = strings.TrimSpace(clause)
-		if strings.Contains(clause, "!=") {
-			parts := strings.SplitN(clause, "!=", 2)
-			key := strings.TrimSpace(parts[0])
-			val := strings.Trim(strings.TrimSpace(parts[1]), "\"'")
-			if ctx[key] == val {
-				return false
-			}
-		} else if strings.Contains(clause, "==") {
-			parts := strings.SplitN(clause, "==", 2)
-			key := strings.TrimSpace(parts[0])
-			val := strings.Trim(strings.TrimSpace(parts[1]), "\"'")
-			if ctx[key] != val {
-				return false
-			}
-		} else {
-			return false
-		}
-	}
-	return true
 }
 
 // labels
