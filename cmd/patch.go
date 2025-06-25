@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/hashmap-kz/kubepatch/internal/utils"
+	"github.com/hashmap-kz/kubepatch/internal/unstr"
 
 	"github.com/hashmap-kz/kubepatch/internal/patch"
 	"sigs.k8s.io/yaml"
@@ -28,7 +28,7 @@ func NewPatchCmd() *cobra.Command {
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// read manifests
-			manifests, err := utils.ReadDocs(opts.Filenames, opts.Recursive)
+			manifests, err := unstr.ReadDocs(opts.Filenames, opts.Recursive)
 			if err != nil {
 				return err
 			}
