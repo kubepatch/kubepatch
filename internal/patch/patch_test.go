@@ -29,9 +29,9 @@ data:
 
 	patchFile := &FullPatchFile{
 		Labels: map[string]string{"env": "dev"},
-		Patches: []*PatchGroup{
+		Patches: []*Group{
 			{
-				Target: PatchTarget{
+				Target: Target{
 					Kind: "ConfigMap",
 					Name: "my-config",
 				},
@@ -49,8 +49,8 @@ data:
 	out, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
 	assert.NoError(t, err)
 
-	assert.Contains(t, out, "env: dev")
-	assert.Contains(t, out, "foo: patched")
+	assert.Contains(t, string(out), "env: dev")
+	assert.Contains(t, string(out), "foo: patched")
 }
 
 func Test_Run_SkipNonMatchingTarget(t *testing.T) {
@@ -65,9 +65,9 @@ data:
 
 	patchFile := &FullPatchFile{
 		Labels: map[string]string{"app": "ignored"},
-		Patches: []*PatchGroup{
+		Patches: []*Group{
 			{
-				Target: PatchTarget{
+				Target: Target{
 					Kind: "ConfigMap",
 					Name: "not-matching",
 				},
@@ -81,9 +81,9 @@ data:
 	out, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
 	assert.NoError(t, err)
 
-	assert.Contains(t, out, "app: ignored") // label injected
-	assert.Contains(t, out, "foo: bar")     // value remains unpatched
-	assert.NotContains(t, out, "patched")   // patch not applied
+	assert.Contains(t, string(out), "app: ignored") // label injected
+	assert.Contains(t, string(out), "foo: bar")     // value remains unpatched
+	assert.NotContains(t, string(out), "patched")   // patch not applied
 }
 
 func Test_Run_InvalidPatchFormat(t *testing.T) {
@@ -97,9 +97,9 @@ data:
 `)
 
 	patchFile := &FullPatchFile{
-		Patches: []*PatchGroup{
+		Patches: []*Group{
 			{
-				Target: PatchTarget{
+				Target: Target{
 					Kind: "ConfigMap",
 					Name: "my-config",
 				},
@@ -125,9 +125,9 @@ data:
 `)
 
 	patchFile := &FullPatchFile{
-		Patches: []*PatchGroup{
+		Patches: []*Group{
 			{
-				Target: PatchTarget{
+				Target: Target{
 					Kind: "ConfigMap",
 					Name: "my-config",
 				},
@@ -156,9 +156,9 @@ data:
 `)
 
 	patchFile := &FullPatchFile{
-		Patches: []*PatchGroup{
+		Patches: []*Group{
 			{
-				Target: PatchTarget{
+				Target: Target{
 					Kind: "ConfigMap",
 					Name: "my-config",
 				},

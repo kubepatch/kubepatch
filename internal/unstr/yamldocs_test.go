@@ -40,7 +40,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: secret
-`), 0o644)
+`), 0o600)
 	assert.NoError(t, err)
 
 	objs, err := ReadDocs([]string{path}, false)
@@ -63,7 +63,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: cm
-`), 0o644)
+`), 0o600)
 	assert.NoError(t, err)
 
 	objs, err := ReadDocs([]string{path}, false)
@@ -83,7 +83,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: a
-`), 0o644)
+`), 0o600)
 	assert.NoError(t, err)
 
 	err = os.WriteFile(filepath.Join(sub, "b.yaml"), []byte(`
@@ -91,7 +91,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: b
-`), 0o644)
+`), 0o600)
 	assert.NoError(t, err)
 
 	objs, err := ReadDocs([]string{tmp}, true)
@@ -104,7 +104,7 @@ metadata:
 func Test_ReadDocs_ErrorOnBadYAML(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "bad.yaml")
-	err := os.WriteFile(path, []byte("this: is: invalid: yaml"), 0o644)
+	err := os.WriteFile(path, []byte("this: is: invalid: yaml"), 0o600)
 	assert.NoError(t, err)
 
 	objs, err := ReadDocs([]string{path}, false)

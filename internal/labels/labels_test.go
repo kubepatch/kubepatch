@@ -168,7 +168,7 @@ spec:
 
 func parseManifests(t *testing.T, yamlText string) []*unstructured.Unstructured {
 	parts := strings.Split(yamlText, "---")
-	var objs []*unstructured.Unstructured
+	objs := make([]*unstructured.Unstructured, 0, len(parts))
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		if part == "" {

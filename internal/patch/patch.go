@@ -1,10 +1,10 @@
 package patch
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/hashmap-kz/kubepatch/internal/labels"
@@ -13,23 +13,23 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type PatchTarget struct {
+type Target struct {
 	Kind string `yaml:"kind"`
 	Name string `yaml:"name"`
 }
 
-type PatchGroup struct {
-	Target  PatchTarget              `yaml:"target"`
+type Group struct {
+	Target  Target                   `yaml:"target"`
 	Patches []map[string]interface{} `yaml:"patches"`
 }
 
 type FullPatchFile struct {
 	Name    string            `yaml:"name"`
 	Labels  map[string]string `yaml:"labels"`
-	Patches []*PatchGroup     `yaml:"patches"`
+	Patches []*Group          `yaml:"patches"`
 }
 
-func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) (string, error) {
+func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) ([]byte, error) {
 	// metadata.name
 	for _, group := range patchFile.Patches {
 		group.Patches = append(group.Patches, map[string]interface{}{
@@ -47,31 +47,44 @@ func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) (stri
 				continue
 			}
 
-			jsonData, _ := json.Marshal(doc)
-			patchJson, _ := json.Marshal(group.Patches)
-
-			if _, err := jsonpatch.DecodePatch(patchJson); err != nil {
-				fmt.Fprintf(os.Stderr, "Invalid patch for %s/%s: %v\n", doc.GetKind(), doc.GetName(), err)
-				return "", err
+			jsonData, err := json.Marshal(doc)
+			if err != nil {
+				return nil, err
 			}
 
-			patch, _ := jsonpatch.DecodePatch(patchJson)
-			patchedJson, err := patch.Apply(jsonData)
+			patchJSON, err := json.Marshal(group.Patches)
+			if err != nil {
+				return nil, err
+			}
+
+			patch, err := jsonpatch.DecodePatch(patchJSON)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid patch for %s/%s: %v\n", doc.GetKind(), doc.GetName(), err)
+				return nil, err
+			}
+
+			patchedJSON, err := patch.Apply(jsonData)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to apply patch to %s/%s: %v\n", doc.GetKind(), doc.GetName(), err)
-				return "", err
+				return nil, err
 			}
 
 			var updated unstructured.Unstructured
-			_ = json.Unmarshal(patchedJson, &updated)
+			err = json.Unmarshal(patchedJSON, &updated)
+			if err != nil {
+				return nil, err
+			}
 			manifests[i] = &updated
 		}
 	}
 
-	sb := strings.Builder{}
+	buf := bytes.Buffer{}
 	for _, doc := range manifests {
-		out, _ := yaml.Marshal(doc)
-		sb.WriteString(fmt.Sprintf("---\n%s", string(out)))
+		out, err := yaml.Marshal(doc)
+		if err != nil {
+			return nil, err
+		}
+		buf.WriteString(fmt.Sprintf("---\n%s", string(out)))
 	}
-	return sb.String(), nil
+	return buf.Bytes(), nil
 }

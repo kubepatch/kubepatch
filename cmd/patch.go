@@ -26,7 +26,7 @@ func NewPatchCmd() *cobra.Command {
 		Use:           "patch",
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			// read manifests
 			manifests, err := unstr.ReadDocs(opts.Filenames, opts.Recursive)
 			if err != nil {
@@ -48,16 +48,15 @@ func NewPatchCmd() *cobra.Command {
 			if err != nil {
 				return nil
 			}
-			fmt.Print(rendered)
+			fmt.Print(string(rendered))
 			return nil
 		},
 	}
 	cmd.Flags().StringSliceVarP(&opts.Filenames, "filename", "f", nil, "Manifest files, glob patterns, or directories to apply.")
 	cmd.Flags().StringVarP(&opts.PatchFilePath, "patchfile", "p", "", "Patch file")
 
-	//nolint:errcheck
-	_ = cmd.MarkFlagRequired("filename")
-	_ = cmd.MarkFlagRequired("patchfile")
+	_ = cmd.MarkFlagRequired("filename")  //nolint:errcheck
+	_ = cmd.MarkFlagRequired("patchfile") //nolint:errcheck
 
 	cmd.Flags().BoolVarP(&opts.Recursive, "recursive", "R", false, "Recurse into directories specified with --filename.")
 	return cmd
