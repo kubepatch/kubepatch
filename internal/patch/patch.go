@@ -7,7 +7,7 @@ import (
 	"os"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/hashmap-kz/kubepatch/internal/labels"
+	"github.com/kubepatch/kubepatch/internal/labels"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"sigs.k8s.io/yaml"

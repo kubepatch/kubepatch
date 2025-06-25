@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/hashmap-kz/kubepatch/internal/resolve"
+	"github.com/kubepatch/kubepatch/internal/resolve"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )

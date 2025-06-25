@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hashmap-kz/kubepatch/cmd"
+	"github.com/kubepatch/kubepatch/cmd"
 )
 
 func main() {

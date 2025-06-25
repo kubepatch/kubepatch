@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/hashmap-kz/kubepatch/internal/unstr"
+	"github.com/kubepatch/kubepatch/internal/unstr"
 
-	"github.com/hashmap-kz/kubepatch/internal/patch"
+	"github.com/kubepatch/kubepatch/internal/patch"
 	"sigs.k8s.io/yaml"
 
 	"github.com/spf13/cobra"

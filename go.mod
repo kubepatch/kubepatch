@@ -1,4 +1,4 @@
-module github.com/hashmap-kz/kubepatch
+module github.com/kubepatch/kubepatch
 
 go 1.24.1
 
