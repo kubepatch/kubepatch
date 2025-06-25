@@ -1,0 +1,31 @@
+# deployment
+- target:
+    kind: Deployment
+    name: nginx
+  patches:
+    - op: replace
+      path: /spec/replicas
+      value: 1
+
+    - op: replace
+      path: /spec/template/spec/containers/0/image
+      value: "nginx:1.27.0"
+
+    - op: add
+      path: /spec/template/spec/containers/0/resources
+      value:
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+        requests:
+          cpu: "64m"
+          memory: "128Mi"
+
+# service
+- target:
+    kind: Service
+    name: nginx
+  patches:
+    - op: add
+      path: /spec/ports/0/nodePort
+      value: "30265"
