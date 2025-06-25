@@ -150,6 +150,52 @@ Apply the appropriate patch set based on the target environment.
 kubepatch patch -f base/ -p patches/dev.yaml | kubectl apply -f -
 ```
 
+Rendered manifest may look like this (note that all labels are set, as well as all patches are applied)
+
+```yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: myapp-dev
+  name: myapp-dev
+spec:
+  ports:
+    - nodePort: 30265
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: myapp-dev
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: myapp-dev
+  name: myapp-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp-dev
+  template:
+    metadata:
+      labels:
+        app: myapp-dev
+    spec:
+      containers:
+        - env:
+            - name: RESTAPIAPP_VERSION
+              value: dev
+            - name: LOG_LEVEL
+              value: debug
+          image: localhost:5000/restapiapp:1.22
+          name: myapp
+```
+
 ---
 
 ## ✨ Key Features

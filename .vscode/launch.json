@@ -10,9 +10,9 @@
       "args": [
         "patch",
         "-f",
-        "examples/01-basic/manifests",
+        "examples/01-basic-microservice/k8s/manifests",
         "-p",
-        "examples/01-basic/patches-dev.yaml"
+        "examples/01-basic-microservice/k8s/patches-dev.yaml"
       ],
       "env": {},
       "console": "integratedTerminal"
