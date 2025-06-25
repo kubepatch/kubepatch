@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/hashmap-kz/kubepatch/internal/labels"
@@ -27,7 +28,7 @@ type FullPatchFile struct {
 	Patches []PatchGroup      `yaml:"patches"`
 }
 
-func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) error {
+func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) (string, error) {
 	for i, doc := range manifests {
 		labels.ApplyCommonLabels(doc, patchFile.Labels)
 
@@ -41,14 +42,14 @@ func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) error
 
 			if _, err := jsonpatch.DecodePatch(patchJson); err != nil {
 				fmt.Fprintf(os.Stderr, "Invalid patch for %s/%s: %v\n", doc.GetKind(), doc.GetName(), err)
-				return err
+				return "", err
 			}
 
 			patch, _ := jsonpatch.DecodePatch(patchJson)
 			patchedJson, err := patch.Apply(jsonData)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to apply patch to %s/%s: %v\n", doc.GetKind(), doc.GetName(), err)
-				return err
+				return "", err
 			}
 
 			var updated unstructured.Unstructured
@@ -57,10 +58,10 @@ func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) error
 		}
 	}
 
+	sb := strings.Builder{}
 	for _, doc := range manifests {
 		out, _ := yaml.Marshal(doc)
-		fmt.Printf("---\n%s", string(out))
+		sb.WriteString(fmt.Sprintf("---\n%s", string(out)))
 	}
-
-	return nil
+	return sb.String(), nil
 }

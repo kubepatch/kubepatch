@@ -1,8 +1,6 @@
 package patch
 
 import (
-	"bytes"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,18 +14,6 @@ func mustObj(y string) *unstructured.Unstructured {
 		panic(err)
 	}
 	return &unstructured.Unstructured{Object: m}
-}
-
-func captureStdout(f func()) string {
-	var buf bytes.Buffer
-	stdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	f()
-	_ = w.Close()
-	_, _ = buf.ReadFrom(r)
-	os.Stdout = stdout
-	return buf.String()
 }
 
 func Test_Run_InjectLabelsAndPatch(t *testing.T) {
@@ -60,10 +46,8 @@ data:
 		},
 	}
 
-	out := captureStdout(func() {
-		err := Run([]*unstructured.Unstructured{manifest}, patchFile)
-		assert.NoError(t, err)
-	})
+	out, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
+	assert.NoError(t, err)
 
 	assert.Contains(t, out, "env: dev")
 	assert.Contains(t, out, "foo: patched")
@@ -94,10 +78,8 @@ data:
 		},
 	}
 
-	out := captureStdout(func() {
-		err := Run([]*unstructured.Unstructured{manifest}, patchFile)
-		assert.NoError(t, err)
-	})
+	out, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
+	assert.NoError(t, err)
 
 	assert.Contains(t, out, "app: ignored") // label injected
 	assert.Contains(t, out, "foo: bar")     // value remains unpatched
@@ -128,7 +110,7 @@ data:
 		},
 	}
 
-	err := Run([]*unstructured.Unstructured{manifest}, patchFile)
+	_, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
 	assert.Error(t, err)
 }
 
@@ -159,7 +141,7 @@ data:
 		},
 	}
 
-	err := Run([]*unstructured.Unstructured{manifest}, patchFile)
+	_, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
 	assert.Error(t, err)
 }
 
@@ -191,6 +173,6 @@ data:
 		},
 	}
 
-	err := Run([]*unstructured.Unstructured{manifest}, patchFile)
+	_, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
 	assert.Error(t, err)
 }

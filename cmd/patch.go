@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -43,7 +44,12 @@ func NewPatchCmd() *cobra.Command {
 			}
 
 			// preform the job
-			return patch.Run(manifests, &patchFile)
+			rendered, err := patch.Run(manifests, &patchFile)
+			if err != nil {
+				return nil
+			}
+			fmt.Print(rendered)
+			return nil
 		},
 	}
 	cmd.Flags().StringSliceVarP(&opts.Filenames, "filename", "f", nil, "Manifest files, glob patterns, or directories to apply.")
