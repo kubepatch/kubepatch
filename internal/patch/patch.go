@@ -24,11 +24,21 @@ type PatchGroup struct {
 }
 
 type FullPatchFile struct {
+	Name    string            `yaml:"name"`
 	Labels  map[string]string `yaml:"labels"`
-	Patches []PatchGroup      `yaml:"patches"`
+	Patches []*PatchGroup     `yaml:"patches"`
 }
 
 func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) (string, error) {
+	// metadata.name
+	for _, group := range patchFile.Patches {
+		group.Patches = append(group.Patches, map[string]interface{}{
+			"op":    "replace",
+			"path":  "/metadata/name",
+			"value": patchFile.Name,
+		})
+	}
+
 	for i, doc := range manifests {
 		labels.ApplyCommonLabels(doc, patchFile.Labels)
 

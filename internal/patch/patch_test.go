@@ -29,7 +29,7 @@ data:
 
 	patchFile := &FullPatchFile{
 		Labels: map[string]string{"env": "dev"},
-		Patches: []PatchGroup{
+		Patches: []*PatchGroup{
 			{
 				Target: PatchTarget{
 					Kind: "ConfigMap",
@@ -65,7 +65,7 @@ data:
 
 	patchFile := &FullPatchFile{
 		Labels: map[string]string{"app": "ignored"},
-		Patches: []PatchGroup{
+		Patches: []*PatchGroup{
 			{
 				Target: PatchTarget{
 					Kind: "ConfigMap",
@@ -97,7 +97,7 @@ data:
 `)
 
 	patchFile := &FullPatchFile{
-		Patches: []PatchGroup{
+		Patches: []*PatchGroup{
 			{
 				Target: PatchTarget{
 					Kind: "ConfigMap",
@@ -125,7 +125,7 @@ data:
 `)
 
 	patchFile := &FullPatchFile{
-		Patches: []PatchGroup{
+		Patches: []*PatchGroup{
 			{
 				Target: PatchTarget{
 					Kind: "ConfigMap",
@@ -156,7 +156,7 @@ data:
 `)
 
 	patchFile := &FullPatchFile{
-		Patches: []PatchGroup{
+		Patches: []*PatchGroup{
 			{
 				Target: PatchTarget{
 					Kind: "ConfigMap",

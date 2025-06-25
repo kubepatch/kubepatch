@@ -1,3 +1,5 @@
+name: myapp-dev
+
 labels:
   app: myapp-dev
 
@@ -7,10 +9,6 @@ patches:
       kind: Deployment
       name: myapp
     patches:
-      - op: replace
-        path: /metadata/name
-        value: myapp-dev
-
       - op: replace
         path: /spec/replicas
         value: 1
@@ -32,9 +30,6 @@ patches:
       kind: Service
       name: myapp
     patches:
-      - op: replace
-        path: /metadata/name
-        value: myapp-dev
       - op: add
         path: /spec/ports/0/nodePort
         value: 30265
