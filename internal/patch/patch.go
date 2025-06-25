@@ -291,7 +291,7 @@ func applyCommonLabels(obj *unstructured.Unstructured, labels map[string]string)
 	}
 }
 
-// readDocs resolves -f arguments (or stdin '-') into a slice of decoded
+// ReadDocs resolves -f arguments (or stdin '-') into a slice of decoded
 // Kubernetes objects. It expands directory globs, walks recursively if
 // requested and supports YAML documents containing multiple resources.
 func ReadDocs(filenames []string, recursive bool) ([]*unstructured.Unstructured, error) {
