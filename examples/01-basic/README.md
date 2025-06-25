@@ -1,8 +1,19 @@
 # Quick Start
 
 ```
+######################################################################
+### prepare image/binary
+######################################################################
+
 # build docker image for a simple web-app, push to a local registry
 make image
+
+# build and install kubepatch to /usr/local/bin
+make binary
+
+######################################################################
+### test steps
+######################################################################
 
 # render manifests with applying 'dev' patch-set (just debug to stdout)
 make dev

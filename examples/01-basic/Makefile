@@ -4,16 +4,16 @@ image:
 binary:
 	@cd ../../ && make install > /dev/null 2>&1
 
-dev: binary
+dev:
 	@kubepatch patch -f manifests -p patches-dev.yaml
 
-prod: binary
+prod:
 	@kubepatch patch -f manifests -p patches-prod.yaml
 
-dev-deploy: binary image
+dev-deploy:
 	@kubepatch patch -f manifests -p patches-dev.yaml | kubectl apply -f -
 
-prod-deploy: binary image
+prod-deploy:
 	@kubepatch patch -f manifests -p patches-prod.yaml | kubectl apply -f -
 
 ping-dev:
