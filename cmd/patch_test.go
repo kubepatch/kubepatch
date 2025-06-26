@@ -6,89 +6,74 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func writeTempFile(t *testing.T, content string) string {
 	tmp := t.TempDir()
-	path := filepath.Join(tmp, "patch.yaml")
-	err := os.WriteFile(path, []byte(content), 0o600)
-	assert.NoError(t, err)
-	return path
-}
-
-func TestReadPatchFile_NoEnvsubst(t *testing.T) {
-	content := `
-name: mypatch
-labels:
-  env: dev
-patches:
-  - target:
-      kind: Deployment
-      name: myapp
-    patches:
-      - op: replace
-        path: /spec/replicas
-        value: 2
-`
-	path := writeTempFile(t, content)
-
-	result, err := readPatchFile(path, nil)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, "mypatch", result.Name)
-	assert.Equal(t, "dev", result.Labels["env"])
-	assert.Len(t, result.Patches, 1)
-}
-
-func TestReadPatchFile_WithEnvsubst(t *testing.T) {
-	os.Setenv("APP_ENV", "prod")
-	defer os.Unsetenv("APP_ENV")
-
-	content := `
-name: envpatch
-labels:
-  env: $APP_ENV
-patches: []
-`
-	path := writeTempFile(t, content)
-
-	result, err := readPatchFile(path, []string{"APP_"})
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, "envpatch", result.Name)
-	assert.Equal(t, "prod", result.Labels["env"])
-}
-
-func TestReadPatchFile_InvalidYAML(t *testing.T) {
-	content := `
-name: invalid
-labels:
-  env: [unclosed
-`
-	path := writeTempFile(t, content)
-
-	result, err := readPatchFile(path, nil)
-	assert.Error(t, err)
-	assert.Nil(t, result)
+	file := filepath.Join(tmp, "patch.yaml")
+	err := os.WriteFile(file, []byte(content), 0o600)
+	require.NoError(t, err)
+	return file
 }
 
 func TestReadPatchFile_FileNotFound(t *testing.T) {
-	result, err := readPatchFile("non-existent-file.yaml", nil)
+	_, err := readPatchFile("nonexistent.yaml", nil)
 	assert.Error(t, err)
-	assert.Nil(t, result)
 }
 
-func TestReadPatchFile_EnvsubstError(t *testing.T) {
-	// simulate substitution error using prefix that doesn't match any defined env
+func TestReadPatchFile_InvalidYAML(t *testing.T) {
+	path := writeTempFile(t, `invalid: [unclosed`)
+	_, err := readPatchFile(path, nil)
+	assert.Error(t, err)
+}
+
+func TestReadPatchFile_ValidYAML(t *testing.T) {
 	content := `
-name: broken
-labels:
-  env: $MISSING_ENV
-patches: []
+myapp:
+  configmap/myconfig:
+    - op: replace
+      path: /data/foo
+      value: bar
 `
 	path := writeTempFile(t, content)
+	patchFile, err := readPatchFile(path, nil)
+	require.NoError(t, err)
 
-	result, err := readPatchFile(path, []string{"MISSING_"})
+	ops := patchFile["myapp"]["configmap/myconfig"]
+	require.Len(t, ops, 1)
+	assert.Equal(t, "replace", ops[0].Op)
+	assert.Equal(t, "/data/foo", ops[0].Path)
+	assert.Equal(t, "bar", ops[0].Value)
+}
+
+func TestReadPatchFile_Envsubst(t *testing.T) {
+	os.Setenv("FOO", "bar")
+	content := `
+myapp:
+  configmap/myconfig:
+    - op: replace
+      path: /data/foo
+      value: ${FOO}
+`
+	path := writeTempFile(t, content)
+	patchFile, err := readPatchFile(path, []string{"FOO"})
+	require.NoError(t, err)
+
+	ops := patchFile["myapp"]["configmap/myconfig"]
+	require.Len(t, ops, 1)
+	assert.Equal(t, "bar", ops[0].Value)
+}
+
+func TestReadPatchFile_EnvsubstFails(t *testing.T) {
+	content := `
+myapp:
+  configmap/myconfig:
+    - op: replace
+      path: /data/foo
+      value: ${MISSING_VAR}
+`
+	path := writeTempFile(t, content)
+	_, err := readPatchFile(path, []string{"MISSING_VAR"})
 	assert.Error(t, err)
-	assert.Nil(t, result)
 }

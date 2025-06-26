@@ -92,83 +92,55 @@ spec:
 A `patches/prod.yaml` might look like:
 
 ```yaml
-name: myapp-prod
-
-labels:
-  app: myapp-prod
-
-patches:
-  # deployment
-  - target:
-      kind: Deployment
-      name: myapp
-    patches:
-      - op: replace
-        path: /spec/replicas
-        value: 1
-
-      - op: replace
-        path: /spec/template/spec/containers/0/image
-        value: "localhost:5000/restapiapp:1.21"
-
-      - op: add
-        path: /spec/template/spec/containers/0/env
-        value:
-          - name: RESTAPIAPP_VERSION
-            value: prod
-          - name: LOG_LEVEL
-            value: info
-
-      - op: add
-        path: /spec/template/spec/containers/0/resources
-        value:
-          limits:
-            cpu: "500m"
-            memory: "512Mi"
-          requests:
-            cpu: "64m"
-            memory: "128Mi"
-
-  # service
-  - target:
-      kind: Service
-      name: myapp
-    patches:
-      - op: add
-        path: /spec/ports/0/nodePort
-        value: 30266
+myapp-prod:
+  deployment/myapp:
+    - op: replace
+      path: /spec/replicas
+      value: 2
+    - op: replace
+      path: /spec/template/spec/containers/0/image
+      value: "localhost:5000/restapiapp:1.21"
+    - op: add
+      path: /spec/template/spec/containers/0/env
+      value:
+        - name: RESTAPIAPP_VERSION
+          value: prod
+        - name: LOG_LEVEL
+          value: info
+    - op: add
+      path: /spec/template/spec/containers/0/resources
+      value:
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+        requests:
+          cpu: "64m"
+          memory: "128Mi"
+  service/myapp:
+    - op: add
+      path: /spec/ports/0/nodePort
+      value: 30266
 ```
 
 A `patches/dev.yaml` might look like:
 
 ```yaml
-name: myapp-dev
-
-labels:
-  app: myapp-dev
-
-patches:
-  # deployment
-  - target:
-      kind: Deployment
-      name: myapp
-    patches:
-      - op: add
-        path: /spec/template/spec/containers/0/env
-        value:
-          - name: RESTAPIAPP_VERSION
-            value: dev
-          - name: LOG_LEVEL
-            value: debug
-
-  # service
-  - target:
-      kind: Service
-      name: myapp
-    patches:
-      - op: add
-        path: /spec/ports/0/nodePort
-        value: 30265
+myapp-dev:
+  deployment/myapp:
+    - op: replace
+      path: /spec/template/spec/containers/0/image
+      value: "localhost:5000/restapiapp:1.22"
+    - op: add
+      path: /spec/template/spec/containers/0/env
+      value:
+        - name: RESTAPIAPP_VERSION
+          value: dev
+        - name: LOG_LEVEL
+          value: debug
+  service/myapp:
+    - op: add
+      path: /spec/ports/0/nodePort
+      value: 30265
 ```
 
 Apply the appropriate patch set based on the target environment.

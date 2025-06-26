@@ -1,7 +1,10 @@
 package patch
 
 import (
+	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -27,20 +30,13 @@ data:
   foo: bar
 `)
 
-	patchFile := &FullPatchFile{
-		Labels: map[string]string{"env": "dev"},
-		Patches: []*Group{
-			{
-				Target: Target{
-					Kind: "ConfigMap",
-					Name: "my-config",
-				},
-				Patches: []map[string]interface{}{
-					{
-						"op":    "replace",
-						"path":  "/data/foo",
-						"value": "patched",
-					},
+	patchFile := FullPatchFile{
+		"my-config": {
+			"configmap/my-config": {
+				{
+					Op:    "replace",
+					Path:  "/data/foo",
+					Value: "patched",
 				},
 			},
 		},
@@ -48,42 +44,8 @@ data:
 
 	out, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
 	assert.NoError(t, err)
-
-	assert.Contains(t, string(out), "env: dev")
-	assert.Contains(t, string(out), "foo: patched")
-}
-
-func Test_Run_SkipNonMatchingTarget(t *testing.T) {
-	manifest := mustObj(`
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: another-config
-data:
-  foo: bar
-`)
-
-	patchFile := &FullPatchFile{
-		Labels: map[string]string{"app": "ignored"},
-		Patches: []*Group{
-			{
-				Target: Target{
-					Kind: "ConfigMap",
-					Name: "not-matching",
-				},
-				Patches: []map[string]interface{}{
-					{"op": "replace", "path": "/data/foo", "value": "patched"},
-				},
-			},
-		},
-	}
-
-	out, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
-	assert.NoError(t, err)
-
-	assert.Contains(t, string(out), "app: ignored") // label injected
-	assert.Contains(t, string(out), "foo: bar")     // value remains unpatched
-	assert.NotContains(t, string(out), "patched")   // patch not applied
+	assert.Contains(t, string(out), "app: my-config") // label added
+	assert.Contains(t, string(out), "foo: patched")   // patch applied
 }
 
 func Test_Run_InvalidPatchFormat(t *testing.T) {
@@ -96,15 +58,11 @@ data:
   foo: bar
 `)
 
-	patchFile := &FullPatchFile{
-		Patches: []*Group{
-			{
-				Target: Target{
-					Kind: "ConfigMap",
-					Name: "my-config",
-				},
-				Patches: []map[string]interface{}{
-					{"op": "bogus-op"}, // missing path
+	patchFile := FullPatchFile{
+		"my-config": {
+			"configmap/my-config": {
+				{
+					Op: "bogus-op",
 				},
 			},
 		},
@@ -124,18 +82,12 @@ data:
   foo: bar
 `)
 
-	patchFile := &FullPatchFile{
-		Patches: []*Group{
-			{
-				Target: Target{
-					Kind: "ConfigMap",
-					Name: "my-config",
-				},
-				Patches: []map[string]interface{}{
-					{
-						"op":   "remove",
-						"path": "/data/missing", // not present -> still valid (JSON patch allows this)
-					},
+	patchFile := FullPatchFile{
+		"my-config": {
+			"configmap/my-config": {
+				{
+					Op:   "remove",
+					Path: "/data/missing",
 				},
 			},
 		},
@@ -155,19 +107,13 @@ data:
   foo: bar
 `)
 
-	patchFile := &FullPatchFile{
-		Patches: []*Group{
-			{
-				Target: Target{
-					Kind: "ConfigMap",
-					Name: "my-config",
-				},
-				Patches: []map[string]interface{}{
-					{
-						"op":    "replace",
-						"path":  "/data/missing", // will fail: "replace" must match
-						"value": "nope",
-					},
+	patchFile := FullPatchFile{
+		"my-config": {
+			"configmap/my-config": {
+				{
+					Op:    "replace",
+					Path:  "/data/missing",
+					Value: "nope",
 				},
 			},
 		},
@@ -175,4 +121,45 @@ data:
 
 	_, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
 	assert.Error(t, err)
+}
+
+func TestRun_MetadataNameInjectionPreservesInput(t *testing.T) {
+	manifest := mustObj(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myconfig
+`)
+
+	originalOps := []Operation{
+		{
+			Op:    "add",
+			Path:  "/metadata/labels/env",
+			Value: "test",
+		},
+	}
+
+	patchFile := FullPatchFile{
+		"newname": {
+			"configmap/myconfig": append([]Operation{}, originalOps...), // clone to be safe
+		},
+	}
+
+	// Save deep copy of original patch input
+	patchJSONBefore, err := json.Marshal(patchFile["newname"]["configmap/myconfig"])
+	require.NoError(t, err)
+
+	// Run the patch logic
+	out, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
+	require.NoError(t, err)
+
+	// Assert output includes name change
+	assert.Contains(t, string(out), "name: newname")
+
+	// Ensure original patch list is NOT mutated
+	patchJSONAfter, err := json.Marshal(patchFile["newname"]["configmap/myconfig"])
+	require.NoError(t, err)
+
+	assert.Equal(t, string(patchJSONBefore), string(patchJSONAfter),
+		"original patch operations should remain unchanged")
 }

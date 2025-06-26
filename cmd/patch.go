@@ -64,7 +64,7 @@ func NewPatchCmd() *cobra.Command {
 	return cmd
 }
 
-func readPatchFile(patchFilePath string, envsubstPrefixes []string) (*patch.FullPatchFile, error) {
+func readPatchFile(patchFilePath string, envsubstPrefixes []string) (patch.FullPatchFile, error) {
 	// read patches
 	patchData, err := os.ReadFile(patchFilePath)
 	if err != nil {
@@ -86,5 +86,5 @@ func readPatchFile(patchFilePath string, envsubstPrefixes []string) (*patch.Full
 	if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
 		return nil, err
 	}
-	return &patchFile, nil
+	return patchFile, nil
 }
