@@ -28,18 +28,23 @@ data:
 `)
 
 	patchFile := &FullPatchFile{
-		Labels: map[string]string{"env": "dev"},
-		Patches: []*Group{
+		Patches: []*AppGroup{
 			{
-				Target: Target{
-					Kind: "ConfigMap",
-					Name: "my-config",
-				},
-				Patches: []map[string]interface{}{
+				Name:   "my-config",
+				Labels: map[string]string{"env": "dev"},
+				Resources: []*ResourcePatch{
 					{
-						"op":    "replace",
-						"path":  "/data/foo",
-						"value": "patched",
+						Target: Target{
+							Kind: "ConfigMap",
+							Name: "my-config",
+						},
+						Patches: []map[string]interface{}{
+							{
+								"op":    "replace",
+								"path":  "/data/foo",
+								"value": "patched",
+							},
+						},
 					},
 				},
 			},
@@ -48,7 +53,6 @@ data:
 
 	out, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
 	assert.NoError(t, err)
-
 	assert.Contains(t, string(out), "env: dev")
 	assert.Contains(t, string(out), "foo: patched")
 }
@@ -64,15 +68,20 @@ data:
 `)
 
 	patchFile := &FullPatchFile{
-		Labels: map[string]string{"app": "ignored"},
-		Patches: []*Group{
+		Patches: []*AppGroup{
 			{
-				Target: Target{
-					Kind: "ConfigMap",
-					Name: "not-matching",
-				},
-				Patches: []map[string]interface{}{
-					{"op": "replace", "path": "/data/foo", "value": "patched"},
+				Name:   "my-config",
+				Labels: map[string]string{"app": "ignored"},
+				Resources: []*ResourcePatch{
+					{
+						Target: Target{
+							Kind: "ConfigMap",
+							Name: "not-matching",
+						},
+						Patches: []map[string]interface{}{
+							{"op": "replace", "path": "/data/foo", "value": "patched"},
+						},
+					},
 				},
 			},
 		},
@@ -97,14 +106,20 @@ data:
 `)
 
 	patchFile := &FullPatchFile{
-		Patches: []*Group{
+		Patches: []*AppGroup{
 			{
-				Target: Target{
-					Kind: "ConfigMap",
-					Name: "my-config",
-				},
-				Patches: []map[string]interface{}{
-					{"op": "bogus-op"}, // missing path
+				Name:   "my-config",
+				Labels: map[string]string{"app": "ignored"},
+				Resources: []*ResourcePatch{
+					{
+						Target: Target{
+							Kind: "ConfigMap",
+							Name: "my-config",
+						},
+						Patches: []map[string]interface{}{
+							{"op": "bogus-op"}, // missing path
+						},
+					},
 				},
 			},
 		},
@@ -125,16 +140,22 @@ data:
 `)
 
 	patchFile := &FullPatchFile{
-		Patches: []*Group{
+		Patches: []*AppGroup{
 			{
-				Target: Target{
-					Kind: "ConfigMap",
-					Name: "my-config",
-				},
-				Patches: []map[string]interface{}{
+				Name:   "my-config",
+				Labels: map[string]string{"app": "ignored"},
+				Resources: []*ResourcePatch{
 					{
-						"op":   "remove",
-						"path": "/data/missing", // not present -> still valid (JSON patch allows this)
+						Target: Target{
+							Kind: "ConfigMap",
+							Name: "my-config",
+						},
+						Patches: []map[string]interface{}{
+							{
+								"op":   "remove",
+								"path": "/data/missing", // not present -> still valid (JSON patch allows this)
+							},
+						},
 					},
 				},
 			},
@@ -156,17 +177,23 @@ data:
 `)
 
 	patchFile := &FullPatchFile{
-		Patches: []*Group{
+		Patches: []*AppGroup{
 			{
-				Target: Target{
-					Kind: "ConfigMap",
-					Name: "my-config",
-				},
-				Patches: []map[string]interface{}{
+				Name:   "my-config",
+				Labels: map[string]string{"app": "ignored"},
+				Resources: []*ResourcePatch{
 					{
-						"op":    "replace",
-						"path":  "/data/missing", // will fail: "replace" must match
-						"value": "nope",
+						Target: Target{
+							Kind: "ConfigMap",
+							Name: "my-config",
+						},
+						Patches: []map[string]interface{}{
+							{
+								"op":    "replace",
+								"path":  "/data/missing", // will fail: "replace" must match
+								"value": "nope",
+							},
+						},
 					},
 				},
 			},
@@ -175,4 +202,57 @@ data:
 
 	_, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
 	assert.Error(t, err)
+}
+
+func Test_Run_AppendsNameReplacementPatch(t *testing.T) {
+	// Initial manifest
+	manifest := mustObj(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: original-name
+data:
+  key: value
+`)
+
+	// Input patch file with one app and one resource
+	patchFile := &FullPatchFile{
+		Patches: []*AppGroup{
+			{
+				Name: "my-app",
+				Resources: []*ResourcePatch{
+					{
+						Target: Target{
+							Kind: "ConfigMap",
+							Name: "original-name",
+						},
+						Patches: []map[string]interface{}{
+							{
+								"op":    "replace",
+								"path":  "/data/key",
+								"value": "modified",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Run the patching logic
+	_, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
+	assert.NoError(t, err)
+
+	// Assert the "replace /metadata/name" patch was appended
+	p := patchFile.Patches[0].Resources[0].Patches
+	assert.Len(t, p, 2)
+
+	found := false
+	for _, patch := range p {
+		if patch["op"] == "replace" && patch["path"] == "/metadata/name" && patch["value"] == "my-app" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected metadata.name replacement patch to be injected")
 }

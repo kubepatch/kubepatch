@@ -1,45 +1,44 @@
-name: myapp-prod
-
-labels:
-  app: myapp-prod
-
 patches:
-  # deployment
-  - target:
-      kind: Deployment
-      name: myapp
-    patches:
-      - op: replace
-        path: /spec/replicas
-        value: 1
+  - name: myapp-prod
+    labels:
+      app: myapp-prod
+    resources:
+      # deployment
+      - target:
+          kind: Deployment
+          name: myapp
+        patches:
+          - op: replace
+            path: /spec/replicas
+            value: 1
 
-      - op: replace
-        path: /spec/template/spec/containers/0/image
-        value: "localhost:5000/restapiapp:1.21"
+          - op: replace
+            path: /spec/template/spec/containers/0/image
+            value: "localhost:5000/restapiapp:1.21"
 
-      - op: add
-        path: /spec/template/spec/containers/0/env
-        value:
-          - name: RESTAPIAPP_VERSION
-            value: prod
-          - name: LOG_LEVEL
-            value: info
+          - op: add
+            path: /spec/template/spec/containers/0/env
+            value:
+              - name: RESTAPIAPP_VERSION
+                value: prod
+              - name: LOG_LEVEL
+                value: info
 
-      - op: add
-        path: /spec/template/spec/containers/0/resources
-        value:
-          limits:
-            cpu: "500m"
-            memory: "512Mi"
-          requests:
-            cpu: "64m"
-            memory: "128Mi"
+          - op: add
+            path: /spec/template/spec/containers/0/resources
+            value:
+              limits:
+                cpu: "500m"
+                memory: "512Mi"
+              requests:
+                cpu: "64m"
+                memory: "128Mi"
 
-  # service
-  - target:
-      kind: Service
-      name: myapp
-    patches:
-      - op: add
-        path: /spec/ports/0/nodePort
-        value: 30266
+      # service
+      - target:
+          kind: Service
+          name: myapp
+        patches:
+          - op: add
+            path: /spec/ports/0/nodePort
+            value: 30266

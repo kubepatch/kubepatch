@@ -1,0 +1,58 @@
+patches:
+  # postgres.yaml
+  - name: postgresql
+    labels:
+      app: postgresql
+    resources:
+      # secret
+      - target:
+          kind: Secret
+          name: postgresql
+        patches:
+          - op: replace
+            path: /stringData
+            value:
+              POSTGRES_PASSWORD: postgres
+              POSTGRES_USER: postgres
+      # statefulset
+      - target:
+          kind: StatefulSet
+          name: postgresql
+        patches:
+          - op: add
+            path: /spec/template/spec/containers/0/env
+            value:
+              - name: APP_ENVIRONMENT
+                value: dev
+      # service
+      - target:
+          kind: Service
+          name: postgresql
+        patches:
+          - op: add
+            path: /spec/ports/0/nodePort
+            value: 30267
+
+  # keycloak.yaml
+  - name: keycloak
+    labels:
+      app: keycloak
+    resources:
+      # statefulset
+      - target:
+          kind: StatefulSet
+          name: keycloak
+        patches:
+          - op: add
+            path: /spec/template/spec/containers/0/env
+            value:
+              - name: APP_ENVIRONMENT
+                value: dev
+      # service
+      - target:
+          kind: Service
+          name: keycloak
+        patches:
+          - op: add
+            path: /spec/ports/0/nodePort
+            value: 30268

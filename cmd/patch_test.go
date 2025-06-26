@@ -18,25 +18,27 @@ func writeTempFile(t *testing.T, content string) string {
 
 func TestReadPatchFile_NoEnvsubst(t *testing.T) {
 	content := `
-name: mypatch
-labels:
-  env: dev
 patches:
-  - target:
-      kind: Deployment
-      name: myapp
-    patches:
-      - op: replace
-        path: /spec/replicas
-        value: 2
+  - name: mypatch
+    labels:
+      env: dev
+    resources:
+    - target:
+        kind: Deployment
+        name: myapp
+      patches:
+        - op: replace
+          path: /spec/replicas
+          value: 2
 `
 	path := writeTempFile(t, content)
 
 	result, err := readPatchFile(path, nil)
 	assert.NoError(t, err)
+	assert.True(t, len(result.Patches) > 0)
 	assert.NotNil(t, result)
-	assert.Equal(t, "mypatch", result.Name)
-	assert.Equal(t, "dev", result.Labels["env"])
+	assert.Equal(t, "mypatch", result.Patches[0].Name)
+	assert.Equal(t, "dev", result.Patches[0].Labels["env"])
 	assert.Len(t, result.Patches, 1)
 }
 
@@ -45,25 +47,29 @@ func TestReadPatchFile_WithEnvsubst(t *testing.T) {
 	defer os.Unsetenv("APP_ENV")
 
 	content := `
-name: envpatch
-labels:
-  env: $APP_ENV
-patches: []
+patches:
+  - name: envpatch
+    labels:
+      env: $APP_ENV
+    resources:
+      - patches: []
 `
 	path := writeTempFile(t, content)
 
 	result, err := readPatchFile(path, []string{"APP_"})
 	assert.NoError(t, err)
+	assert.True(t, len(result.Patches) > 0)
 	assert.NotNil(t, result)
-	assert.Equal(t, "envpatch", result.Name)
-	assert.Equal(t, "prod", result.Labels["env"])
+	assert.Equal(t, "envpatch", result.Patches[0].Name)
+	assert.Equal(t, "prod", result.Patches[0].Labels["env"])
 }
 
 func TestReadPatchFile_InvalidYAML(t *testing.T) {
 	content := `
-name: invalid
-labels:
-  env: [unclosed
+patches:
+  - name: invalid
+    labels:
+      env: [unclosed
 `
 	path := writeTempFile(t, content)
 
@@ -81,10 +87,12 @@ func TestReadPatchFile_FileNotFound(t *testing.T) {
 func TestReadPatchFile_EnvsubstError(t *testing.T) {
 	// simulate substitution error using prefix that doesn't match any defined env
 	content := `
-name: broken
-labels:
-  env: $MISSING_ENV
-patches: []
+patches:
+  - name: broken
+    labels:
+      env: $MISSING_ENV
+    resources:
+      - patches: []
 `
 	path := writeTempFile(t, content)
 

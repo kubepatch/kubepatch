@@ -1,0 +1,109 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak
+stringData: {}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak
+data:
+  TZ: "Asia/Aqtau"
+  KC_PROXY: "edge"
+  KC_DB: "postgres"
+  KC_DB_SCHEMA: "public"
+  KC_HTTP_ENABLED: "true"
+  KC_HOSTNAME_STRICT: "false"
+  KC_HOSTNAME_STRICT_HTTPS: "false"
+  KC_CACHE: "local"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: &app ${CI_PROJECT_NAME}
+  labels:
+    app: *app
+spec:
+  type: NodePort
+  selector:
+    app: *app
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      # dev/tst/preprod/master
+      nodePort: 31005
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: &app ${CI_PROJECT_NAME}
+  labels:
+    app: *app
+spec:
+  replicas: 1
+  serviceName: *app
+  selector:
+    matchLabels:
+      app: *app
+  template:
+    metadata:
+      labels:
+        app: *app
+    spec:
+      imagePullSecrets:
+        - name: myprivateregistry
+
+      initContainers:
+        - name: wait-db
+          image: "busybox:latest"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KC_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          # dev/tst/preprod/master
+          command:
+            - /bin/sh
+            - -euc
+            - |
+              while ! nc -z postgresql 5432; do
+                echo "Waiting for Postgres to boot";
+                sleep 1;
+              done;
+              echo "Postgres is ready";
+
+      containers:
+        - name: *app
+          image: ${APP_IMAGE}
+          imagePullPolicy: Always
+          terminationMessagePolicy: FallbackToLogsOnError
+          args: ["start"]
+          env:
+            - name: KC_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - secretRef:
+                name: *app
+            - configMapRef:
+                name: *app
+
+          # dev/tst/preprod/master
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: 128m
+              memory: 512Mi
