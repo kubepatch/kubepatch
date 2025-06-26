@@ -247,6 +247,12 @@ curl -LO https://github.com/kubepatch/kubepatch/releases/latest/download/kubepat
 apk add kubepatch_linux_amd64.apk --allow-untrusted
 ```
 
+### Docker images are available at [quay.io/kubepatch/kubepatch](https://quay.io/repository/kubepatch/kubepatch)
+
+```bash
+docker pull quay.io/kubepatch/kubepatch:latest
+```
+
 ---
 
 ## ✨ Key Features
