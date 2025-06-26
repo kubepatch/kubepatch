@@ -5,6 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/kubepatch/kubepatch/internal/envs"
+
 	"github.com/kubepatch/kubepatch/internal/unstr"
 
 	"github.com/kubepatch/kubepatch/internal/patch"
@@ -14,10 +16,11 @@ import (
 )
 
 type PatchCmdOptions struct {
-	Filenames     []string
-	PatchFilePath string
-	Timeout       time.Duration
-	Recursive     bool
+	Filenames        []string
+	PatchFilePath    string
+	Timeout          time.Duration
+	Recursive        bool
+	EnvsubstPrefixes []string
 }
 
 func NewPatchCmd() *cobra.Command {
@@ -38,6 +41,18 @@ func NewPatchCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			// subst envs in a patch-file (if opts are set)
+			if len(opts.EnvsubstPrefixes) > 0 {
+				envsubst := envs.NewEnvsubst([]string{}, opts.EnvsubstPrefixes, true)
+				patchFileAfterSubst, err := envsubst.SubstituteEnvs(string(patchData))
+				if err != nil {
+					return err
+				}
+				patchData = []byte(patchFileAfterSubst)
+			}
+
+			// unmarshal to struct
 			var patchFile patch.FullPatchFile
 			if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
 				return err
@@ -48,12 +63,15 @@ func NewPatchCmd() *cobra.Command {
 			if err != nil {
 				return nil
 			}
-			fmt.Print(string(rendered))
+
+			// print rendered
+			fmt.Println(string(rendered))
 			return nil
 		},
 	}
-	cmd.Flags().StringSliceVarP(&opts.Filenames, "filename", "f", nil, "Manifest files, glob patterns, or directories to apply.")
+	cmd.Flags().StringSliceVarP(&opts.Filenames, "filename", "f", nil, "Manifest files, glob patterns, or directories to apply")
 	cmd.Flags().StringVarP(&opts.PatchFilePath, "patchfile", "p", "", "Patch file")
+	cmd.Flags().StringSliceVar(&opts.EnvsubstPrefixes, "envsubst-prefixes", nil, "List of prefixes, allowed for envsubst in a patch-file")
 
 	_ = cmd.MarkFlagRequired("filename")  //nolint:errcheck
 	_ = cmd.MarkFlagRequired("patchfile") //nolint:errcheck
