@@ -5,6 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/kubepatch/kubepatch/internal/envs"
+
 	"github.com/kubepatch/kubepatch/internal/unstr"
 
 	"github.com/kubepatch/kubepatch/internal/patch"
@@ -14,10 +16,11 @@ import (
 )
 
 type PatchCmdOptions struct {
-	Filenames     []string
-	PatchFilePath string
-	Timeout       time.Duration
-	Recursive     bool
+	Filenames        []string
+	PatchFilePath    string
+	Timeout          time.Duration
+	Recursive        bool
+	EnvsubstPrefixes []string
 }
 
 func NewPatchCmd() *cobra.Command {
@@ -33,31 +36,55 @@ func NewPatchCmd() *cobra.Command {
 				return err
 			}
 
-			// read patches
-			patchData, err := os.ReadFile(opts.PatchFilePath)
+			// read patch-file, subst envs
+			patchFile, err := readPatchFile(opts.PatchFilePath, opts.EnvsubstPrefixes)
 			if err != nil {
-				return err
-			}
-			var patchFile patch.FullPatchFile
-			if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
 				return err
 			}
 
 			// preform the job
-			rendered, err := patch.Run(manifests, &patchFile)
+			rendered, err := patch.Run(manifests, patchFile)
 			if err != nil {
 				return nil
 			}
-			fmt.Print(string(rendered))
+
+			// print rendered
+			fmt.Println(string(rendered))
 			return nil
 		},
 	}
-	cmd.Flags().StringSliceVarP(&opts.Filenames, "filename", "f", nil, "Manifest files, glob patterns, or directories to apply.")
+	cmd.Flags().StringSliceVarP(&opts.Filenames, "filename", "f", nil, "Manifest files, glob patterns, or directories to apply")
 	cmd.Flags().StringVarP(&opts.PatchFilePath, "patchfile", "p", "", "Patch file")
+	cmd.Flags().StringSliceVar(&opts.EnvsubstPrefixes, "envsubst-prefixes", nil, "List of prefixes, allowed for envsubst in a patch-file")
 
 	_ = cmd.MarkFlagRequired("filename")  //nolint:errcheck
 	_ = cmd.MarkFlagRequired("patchfile") //nolint:errcheck
 
 	cmd.Flags().BoolVarP(&opts.Recursive, "recursive", "R", false, "Recurse into directories specified with --filename.")
 	return cmd
+}
+
+func readPatchFile(patchFilePath string, envsubstPrefixes []string) (*patch.FullPatchFile, error) {
+	// read patches
+	patchData, err := os.ReadFile(patchFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// subst envs in a patch-file (if opts are set)
+	if len(envsubstPrefixes) > 0 {
+		envsubst := envs.NewEnvsubst([]string{}, envsubstPrefixes, true)
+		patchFileAfterSubst, err := envsubst.SubstituteEnvs(string(patchData))
+		if err != nil {
+			return nil, err
+		}
+		patchData = []byte(patchFileAfterSubst)
+	}
+
+	// unmarshal to struct
+	var patchFile patch.FullPatchFile
+	if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
+		return nil, err
+	}
+	return &patchFile, nil
 }
