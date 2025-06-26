@@ -51,3 +51,16 @@ func ReadDocs(filenames []string, recursive bool) ([]*unstructured.Unstructured,
 
 	return allDocs, nil
 }
+
+func DeepCloneManifests(in []*unstructured.Unstructured) []*unstructured.Unstructured {
+	if in == nil {
+		return nil
+	}
+	out := make([]*unstructured.Unstructured, len(in))
+	for i, obj := range in {
+		if obj != nil {
+			out[i] = obj.DeepCopy()
+		}
+	}
+	return out
+}
