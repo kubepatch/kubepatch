@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/kubepatch/kubepatch/internal/envs"
@@ -86,5 +87,25 @@ func readPatchFile(patchFilePath string, envsubstPrefixes []string) (*patch.Full
 	if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
 		return nil, err
 	}
+
+	if err := checkPatchFile(&patchFile); err != nil {
+		return nil, err
+	}
 	return &patchFile, nil
+}
+
+func checkPatchFile(patchFile *patch.FullPatchFile) error {
+	for _, app := range patchFile.Patches {
+		if strings.TrimSpace(app.Name) == "" {
+			return fmt.Errorf("patch-file error: application name cannot be empty")
+		}
+		if len(app.Labels) == 0 {
+			app.Labels = map[string]string{
+				"app.kubernetes.io/name":       app.Name,
+				"app.kubernetes.io/managed-by": "kubepatch",
+				"app":                          app.Name,
+			}
+		}
+	}
+	return nil
 }

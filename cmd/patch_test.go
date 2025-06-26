@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kubepatch/kubepatch/internal/patch"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -99,4 +101,56 @@ patches:
 	result, err := readPatchFile(path, []string{"MISSING_"})
 	assert.Error(t, err)
 	assert.Nil(t, result)
+}
+
+func TestCheckPatchFile(t *testing.T) {
+	t.Run("fails if app name is empty", func(t *testing.T) {
+		patchFile := &patch.FullPatchFile{
+			Patches: []*patch.AppGroup{
+				{
+					Name: "", // Invalid
+				},
+			},
+		}
+		err := checkPatchFile(patchFile)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "application name cannot be empty")
+	})
+
+	t.Run("sets default labels if none are provided", func(t *testing.T) {
+		patchFile := &patch.FullPatchFile{
+			Patches: []*patch.AppGroup{
+				{
+					Name:   "my-app",
+					Labels: nil, // Will be populated
+				},
+			},
+		}
+		err := checkPatchFile(patchFile)
+		assert.NoError(t, err)
+
+		labels := patchFile.Patches[0].Labels
+		assert.Equal(t, "my-app", labels["app.kubernetes.io/name"])
+		assert.Equal(t, "kubepatch", labels["app.kubernetes.io/managed-by"])
+		assert.Equal(t, "my-app", labels["app"])
+	})
+
+	t.Run("preserves existing labels", func(t *testing.T) {
+		patchFile := &patch.FullPatchFile{
+			Patches: []*patch.AppGroup{
+				{
+					Name: "custom",
+					Labels: map[string]string{
+						"custom-label": "true",
+					},
+				},
+			},
+		}
+		err := checkPatchFile(patchFile)
+		assert.NoError(t, err)
+
+		labels := patchFile.Patches[0].Labels
+		assert.Equal(t, "true", labels["custom-label"])
+		assert.NotContains(t, labels, "app.kubernetes.io/name")
+	})
 }
