@@ -70,7 +70,7 @@ changelog:
 nfpms:
   - file_name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     maintainer: alexey.zh
-    homepage: "https://github.com/hashmap-kz/kubepatch"
+    homepage: "https://github.com/kubepatch/kubepatch"
     description: "Patch-based, environment-aware Kubernetes deployments using plain YAML and zero templating"
     license: "Apache-2.0"
     formats:
@@ -84,3 +84,33 @@ nfpms:
         dst: /usr/share/doc/kubepatch/copyright
         file_info:
           mode: 0644
+
+dockers:
+  - image_templates:
+      - "quay.io/kubepatch/kubepatch:{{ .Version }}-amd64"
+    dockerfile: Dockerfile
+    extra_files:
+      - go.mod
+      - go.sum
+      - main.go
+      - cmd/
+      - internal/
+    build_flag_templates:
+      - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/kubepatch/kubepatch/master/README.md"
+      - '--label=io.artifacthub.package.maintainers=[{"name":"alzhi","email":"mailbox.stdio@gmail.com"}]'
+      - "--label=io.artifacthub.package.license=Apache-2.0"
+      - "--label=org.opencontainers.image.description=Patch-based, environment-aware Kubernetes deployments using plain YAML and zero templating"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--platform=linux/amd64"
+
+docker_manifests:
+  - name_template: "quay.io/kubepatch/kubepatch:{{ .Version }}"
+    image_templates:
+      - "quay.io/kubepatch/kubepatch:{{ .Version }}-amd64"
+  - name_template: "quay.io/kubepatch/kubepatch:latest"
+    image_templates:
+      - "quay.io/kubepatch/kubepatch:{{ .Version }}-amd64"
