@@ -104,7 +104,9 @@ stringData: {}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: postgresql
+  name: &app postgresql
+  labels:
+    app: *app
 spec:
   storageClassName: standard
   accessModes:

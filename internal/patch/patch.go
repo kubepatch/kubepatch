@@ -46,12 +46,13 @@ func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) ([]by
 
 	for i, doc := range manifests {
 		for _, app := range patchFile.Patches {
-			labels.ApplyCommonLabels(doc, app.Labels)
-
 			for _, res := range app.Resources {
 				if doc.GetKind() != res.Target.Kind || doc.GetName() != res.Target.Name {
 					continue
 				}
+
+				// Apply labels only for matched resources
+				labels.ApplyCommonLabels(doc, app.Labels)
 
 				jsonData, err := json.Marshal(doc)
 				if err != nil {
