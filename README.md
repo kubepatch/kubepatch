@@ -17,6 +17,7 @@
 
 - [About](#about)
 - [Example](#example)
+- [Usage](#usage)
 - [Installation](#installation)
     - [Binaries](#manual-installation)
     - [Packages](#package-based-installation)
@@ -220,6 +221,32 @@ spec:
               value: debug
           image: localhost:5000/restapiapp:1.22
           name: myapp
+```
+
+---
+
+## Usage
+
+**[`^        back to top        ^`](#table-of-contents)**
+
+```bash
+# Patch and apply all manifests in a directory
+kubepatch patch -f manifests/ -p patches.yaml | kubectl apply -f -
+
+# Read base manifests from stdin
+cat manifests.yaml | kubepatch patch -f - -p patches.yaml | kubectl apply -f -
+
+# Patch manifests recursively from nested directories
+kubepatch patch -R -f manifests/ -p patches.yaml | kubectl apply -f -
+
+# Patch and apply a manifest from a remote URL
+kubepatch patch \
+  -f https://raw.githubusercontent.com/user/repo/refs/heads/master/manifests/deployment.yaml \
+  -p patches.yaml \
+  | kubectl apply -f -
+
+# Patch with environment variable substitution in patch-file (only variables prefixed with CI_ or APP_)
+kubepatch patch -f manifests/ -p patches.yaml --envsubst-prefixes='CI_,APP_' | kubectl apply -f -
 ```
 
 ---
