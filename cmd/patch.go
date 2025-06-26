@@ -36,30 +36,14 @@ func NewPatchCmd() *cobra.Command {
 				return err
 			}
 
-			// read patches
-			patchData, err := os.ReadFile(opts.PatchFilePath)
+			// read patch-file, subst envs
+			patchFile, err := readPatchFile(opts.PatchFilePath, opts.EnvsubstPrefixes)
 			if err != nil {
 				return err
 			}
 
-			// subst envs in a patch-file (if opts are set)
-			if len(opts.EnvsubstPrefixes) > 0 {
-				envsubst := envs.NewEnvsubst([]string{}, opts.EnvsubstPrefixes, true)
-				patchFileAfterSubst, err := envsubst.SubstituteEnvs(string(patchData))
-				if err != nil {
-					return err
-				}
-				patchData = []byte(patchFileAfterSubst)
-			}
-
-			// unmarshal to struct
-			var patchFile patch.FullPatchFile
-			if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
-				return err
-			}
-
 			// preform the job
-			rendered, err := patch.Run(manifests, &patchFile)
+			rendered, err := patch.Run(manifests, patchFile)
 			if err != nil {
 				return nil
 			}
@@ -78,4 +62,29 @@ func NewPatchCmd() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&opts.Recursive, "recursive", "R", false, "Recurse into directories specified with --filename.")
 	return cmd
+}
+
+func readPatchFile(patchFilePath string, envsubstPrefixes []string) (*patch.FullPatchFile, error) {
+	// read patches
+	patchData, err := os.ReadFile(patchFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// subst envs in a patch-file (if opts are set)
+	if len(envsubstPrefixes) > 0 {
+		envsubst := envs.NewEnvsubst([]string{}, envsubstPrefixes, true)
+		patchFileAfterSubst, err := envsubst.SubstituteEnvs(string(patchData))
+		if err != nil {
+			return nil, err
+		}
+		patchData = []byte(patchFileAfterSubst)
+	}
+
+	// unmarshal to struct
+	var patchFile patch.FullPatchFile
+	if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
+		return nil, err
+	}
+	return &patchFile, nil
 }
