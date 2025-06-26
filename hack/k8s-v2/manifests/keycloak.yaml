@@ -24,7 +24,7 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: &app ${CI_PROJECT_NAME}
+  name: &app keycloak
   labels:
     app: *app
 spec:
@@ -35,14 +35,12 @@ spec:
     - name: http
       port: 8080
       targetPort: 8080
-      # dev/tst/preprod/master
-      nodePort: 31005
 
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: &app ${CI_PROJECT_NAME}
+  name: &app keycloak
   labels:
     app: *app
 spec:
@@ -56,19 +54,10 @@ spec:
       labels:
         app: *app
     spec:
-      imagePullSecrets:
-        - name: myprivateregistry
-
       initContainers:
         - name: wait-db
           image: "busybox:latest"
           imagePullPolicy: IfNotPresent
-          env:
-            - name: KC_POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-          # dev/tst/preprod/master
           command:
             - /bin/sh
             - -euc
@@ -78,18 +67,12 @@ spec:
                 sleep 1;
               done;
               echo "Postgres is ready";
-
       containers:
         - name: *app
-          image: ${APP_IMAGE}
+          image: "quay.io/keycloak/keycloak:26.1.2"
           imagePullPolicy: Always
           terminationMessagePolicy: FallbackToLogsOnError
           args: ["start"]
-          env:
-            - name: KC_POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
           ports:
             - containerPort: 8080
               name: http
@@ -98,8 +81,6 @@ spec:
                 name: *app
             - configMapRef:
                 name: *app
-
-          # dev/tst/preprod/master
           resources:
             limits:
               cpu: "1"

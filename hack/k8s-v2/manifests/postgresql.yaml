@@ -19,86 +19,29 @@ metadata:
   name: postgresql-conf
 data:
   postgresql.conf: |
-    # general
     listen_addresses                = '*'
     port                            = 5432
     max_connections                 = 250
     superuser_reserved_connections  = 3
-
-    # mem
-    dynamic_shared_memory_type      = posix
-    shared_buffers                  = 2GB
-    effective_cache_size            = 6GB
-    work_mem                        = 32MB
-    maintenance_work_mem            = 300MB
-
-    # logs
-
-    # THESE SETTINGS ARE SUITABLE FOR VM, NOT CONTAINER
-    #
-    #logging_collector               = on
-    #log_directory                   = '/var/log/postgresql'
-    #log_filename                    = 'postgresql_%Y%m%d_%H.log'
-    #log_truncate_on_rotation        = on
-    #log_rotation_age                = 1d
-    #log_rotation_size               = 0
-
     log_lock_waits                  = on
     log_temp_files                  = 0
     log_checkpoints                 = on
     log_connections                 = off
     log_destination                 = 'stderr'
-
-    # TERSE, DEFAULT, VERBOSE
     log_error_verbosity             = 'DEFAULT'
-
-    # DEBUG5, DEBUG4, DEBUG3, DEBUG2, DEBUG1, INFO, NOTICE, WARNING, ERROR, LOG, FATAL, PANIC
     log_min_messages                = 'WARNING'
-
     log_hostname                    = off
     log_timezone                    = 'Asia/Aqtau'
     log_line_prefix                 = '%t [%p-%l] %r %q%u@%d '
-
-    # auth
-    password_encryption             = 'scram-sha-256'
-
-    # locale, tz
     datestyle                       = 'iso, mdy'
     timezone                        = 'Asia/Aqtau'
-    lc_messages                     = 'en_US.UTF-8'
-    lc_monetary                     = 'ru_RU.UTF-8'
-    lc_numeric                      = 'ru_RU.UTF-8'
-    lc_time                         = 'ru_RU.UTF-8'
-    default_text_search_config      = 'pg_catalog.russian'
-
-    # stat
-
-    # off, on, auto
-    compute_query_id                = 'off'
-    track_activity_query_size       = '2048'
-    # pl, all, none
-    track_functions                 = 'none'
-    track_io_timing                 = 'off'
-    track_wal_io_timing             = 'off'
-
-    # libs
-    #shared_preload_libraries        = 'pg_stat_statements'
-    #pg_stat_statements.max          = 10000
-    #pg_stat_statements.track        = top
-
-    # wal
-    wal_level                       = replica
-    min_wal_size                    = 1GB
-    max_wal_size                    = 2GB
-    max_wal_senders                 = 10
-    max_replication_slots           = 10
 
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: postgresql
-stringData: {}
+stringData: { }
 
 ---
 apiVersion: v1
