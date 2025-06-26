@@ -1,7 +1,10 @@
 package patch
 
 import (
+	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -120,30 +123,43 @@ data:
 	assert.Error(t, err)
 }
 
-func Test_Run_AppendsNameReplacementPatch(t *testing.T) {
-	// Initial manifest
+func TestRun_MetadataNameInjectionPreservesInput(t *testing.T) {
 	manifest := mustObj(`
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: original-name
-data:
-  key: value
+  name: myconfig
 `)
 
-	patchFile := FullPatchFile{
-		"my-app": {
-			"configmap/original-name": {
-				{
-					Op:    "replace",
-					Path:  "/data/key",
-					Value: "modified",
-				},
-			},
+	originalOps := []Operation{
+		{
+			Op:    "add",
+			Path:  "/metadata/labels/env",
+			Value: "test",
 		},
 	}
 
-	// Run the patching logic
-	_, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
-	assert.NoError(t, err)
+	patchFile := FullPatchFile{
+		"newname": {
+			"configmap/myconfig": append([]Operation{}, originalOps...), // clone to be safe
+		},
+	}
+
+	// Save deep copy of original patch input
+	patchJSONBefore, err := json.Marshal(patchFile["newname"]["configmap/myconfig"])
+	require.NoError(t, err)
+
+	// Run the patch logic
+	out, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
+	require.NoError(t, err)
+
+	// Assert output includes name change
+	assert.Contains(t, string(out), "name: newname")
+
+	// Ensure original patch list is NOT mutated
+	patchJSONAfter, err := json.Marshal(patchFile["newname"]["configmap/myconfig"])
+	require.NoError(t, err)
+
+	assert.Equal(t, string(patchJSONBefore), string(patchJSONAfter),
+		"original patch operations should remain unchanged")
 }

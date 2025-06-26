@@ -86,13 +86,5 @@ func readPatchFile(patchFilePath string, envsubstPrefixes []string) (patch.FullP
 	if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
 		return nil, err
 	}
-
-	if err := checkPatchFile(&patchFile); err != nil {
-		return nil, err
-	}
 	return patchFile, nil
-}
-
-func checkPatchFile(_ *patch.FullPatchFile) error {
-	return nil
 }
