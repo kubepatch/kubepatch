@@ -1,0 +1,9 @@
+.idea
+.git
+.github
+.vscode
+hack/
+examples/
+test/
+bin/
+dist/

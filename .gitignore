@@ -12,8 +12,8 @@ main
 
 dist/
 bin/
+pprof/
 *.log
 coverage.txt
 __debug_bin*
-pprof/
 nohup.out
