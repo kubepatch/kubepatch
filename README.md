@@ -295,6 +295,12 @@ You can inject secrets and configuration values directly into patch files:
 
 Strict env-var substitution (prefix-based) is only allowed inside patches - never in base manifests.
 
+Fails if any placeholders remain unexpanded (unset envs, etc...), ensuring deployment predictability.
+
+```
+kubepatch patch -f base/ -p patches/dev.yaml --envsubst-prefixes='CI_,APP_,IMAGE_'
+```
+
 ---
 
 ## License
