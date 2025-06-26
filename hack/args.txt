@@ -1,4 +1,1 @@
 patch -f examples/01-basic-microservice/k8s/manifests -p examples/01-basic-microservice/k8s/patches-dev.yaml --envsubst-prefixes='CI_,APP_' --envsubst-prefixes='IMAGE_'
-patch -f hack/k8s/manifests -p hack/k8s/patches-dev.yaml --envsubst-prefixes='CI_,APP_' --envsubst-prefixes='IMAGE_'
-
-patch -f hack/k8s-v2/manifests -p hack/k8s-v2/patches-dev.yaml

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
+	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/kubepatch/kubepatch/internal/labels"
@@ -13,67 +13,60 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type Target struct {
-	Kind string `yaml:"kind"`
-	Name string `yaml:"name"`
+type Operation struct {
+	Op    string      `yaml:"op" json:"op"`
+	Path  string      `yaml:"path" json:"path"`
+	Value interface{} `yaml:"value,omitempty" json:"value,omitempty"`
 }
 
-type ResourcePatch struct {
-	Target  Target                   `yaml:"target"`
-	Patches []map[string]interface{} `yaml:"patches"`
-}
+// FullPatchFile map[appName]map["kind/name"] -> []PatchOperation
+type FullPatchFile map[string]map[string][]Operation
 
-type AppGroup struct {
-	Name      string            `yaml:"name"`
-	Labels    map[string]string `yaml:"labels"`
-	Resources []*ResourcePatch  `yaml:"resources"`
-}
-
-type FullPatchFile struct {
-	Patches []*AppGroup `yaml:"patches"`
-}
-
-func Run(manifests []*unstructured.Unstructured, patchFile *FullPatchFile) ([]byte, error) {
-	for _, app := range patchFile.Patches {
-		for _, res := range app.Resources {
-			res.Patches = append(res.Patches, map[string]interface{}{
-				"op":    "replace",
-				"path":  "/metadata/name",
-				"value": app.Name,
-			})
-		}
-	}
-
+func Run(manifests []*unstructured.Unstructured, patchFile FullPatchFile) ([]byte, error) {
 	for i, doc := range manifests {
-		for _, app := range patchFile.Patches {
-			for _, res := range app.Resources {
-				if doc.GetKind() != res.Target.Kind || doc.GetName() != res.Target.Name {
+		for appName, resources := range patchFile {
+			for resourceKey, ops := range resources {
+				parts := strings.SplitN(resourceKey, "/", 2)
+				if len(parts) != 2 {
+					return nil, fmt.Errorf("invalid resource key: %q", resourceKey)
+				}
+				kind, name := strings.ToLower(parts[0]), strings.ToLower(parts[1]) // normalize kind casing
+
+				if strings.ToLower(doc.GetKind()) != kind || strings.ToLower(doc.GetName()) != name {
 					continue
 				}
 
-				// Apply labels only for matched resources
-				labels.ApplyCommonLabels(doc, app.Labels)
+				labels.ApplyCommonLabels(doc, map[string]string{
+					"app":                    appName,
+					"app.kubernetes.io/name": appName,
+				})
+
+				// Inject metadata.name patch
+				opsWithName := append([]Operation{}, ops...) // clone to avoid modifying original
+				opsWithName = append(opsWithName, Operation{
+					Op:    "replace",
+					Path:  "/metadata/name",
+					Value: appName,
+				})
 
 				jsonData, err := json.Marshal(doc)
 				if err != nil {
 					return nil, err
 				}
 
-				patchJSON, err := json.Marshal(res.Patches)
+				patchJSON, err := json.Marshal(opsWithName)
 				if err != nil {
 					return nil, err
 				}
 
 				patch, err := jsonpatch.DecodePatch(patchJSON)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Invalid patch for %s/%s: %v\n", doc.GetKind(), doc.GetName(), err)
-					return nil, err
+					return nil, fmt.Errorf("invalid patch for %s/%s: %w", kind, name, err)
 				}
 
 				patchedJSON, err := patch.Apply(jsonData)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to apply patch to %s/%s: %v\n", doc.GetKind(), doc.GetName(), err)
-					return nil, err
+					return nil, fmt.Errorf("failed to apply patch to %s/%s: %w", kind, name, err)
 				}
 
 				var updated unstructured.Unstructured

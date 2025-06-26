@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/kubepatch/kubepatch/internal/envs"
@@ -65,7 +64,7 @@ func NewPatchCmd() *cobra.Command {
 	return cmd
 }
 
-func readPatchFile(patchFilePath string, envsubstPrefixes []string) (*patch.FullPatchFile, error) {
+func readPatchFile(patchFilePath string, envsubstPrefixes []string) (patch.FullPatchFile, error) {
 	// read patches
 	patchData, err := os.ReadFile(patchFilePath)
 	if err != nil {
@@ -91,21 +90,9 @@ func readPatchFile(patchFilePath string, envsubstPrefixes []string) (*patch.Full
 	if err := checkPatchFile(&patchFile); err != nil {
 		return nil, err
 	}
-	return &patchFile, nil
+	return patchFile, nil
 }
 
-func checkPatchFile(patchFile *patch.FullPatchFile) error {
-	for _, app := range patchFile.Patches {
-		if strings.TrimSpace(app.Name) == "" {
-			return fmt.Errorf("patch-file error: application name cannot be empty")
-		}
-		if len(app.Labels) == 0 {
-			app.Labels = map[string]string{
-				"app.kubernetes.io/name":       app.Name,
-				"app.kubernetes.io/managed-by": "kubepatch",
-				"app":                          app.Name,
-			}
-		}
-	}
+func checkPatchFile(_ *patch.FullPatchFile) error {
 	return nil
 }
