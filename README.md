@@ -13,7 +13,26 @@
 
 ---
 
-## 🎯 Why kubepatch?
+## Table of Contents
+
+- [About](#about)
+- [Example](#example)
+- [Installation](#installation)
+    - [Binaries](#manual-installation)
+    - [Packages](#package-based-installation)
+    - [Docker Images](#docker-images)
+- [Architecture](#architecture)
+    - [JSON Patch Only](#json-patch-only)
+    - [Plain Kubernetes YAML Manifests](#plain-kubernetes-yaml-manifests)
+    - [Cross-Environment Deploys](#cross-environment-deploys)
+    - [Common Labels Support](#common-labels-support)
+    - [Env Var Substitution](#env-var-substitution)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## About
 
 Unlike tools that embed logic into YAML or require custom template languages, `kubepatch` keeps
 your **base manifests clean and idiomatic**.
@@ -26,7 +45,7 @@ your **base manifests clean and idiomatic**.
 
 ---
 
-## 🛠 Example
+## Example
 
 Given a base set of manifests for deploy a basic microservice [see examples](examples/01-basic-microservice):
 
@@ -207,6 +226,8 @@ spec:
 
 ## Installation
 
+**[`^        back to top        ^`](#table-of-contents)**
+
 ### Manual Installation
 
 1. Download the latest binary for your platform from
@@ -229,7 +250,7 @@ chmod +x /usr/local/bin/kubepatch
 )
 ```
 
-### Package-Based installation (suitable in CI/CD)
+### Package-Based installation
 
 #### Debian
 
@@ -247,7 +268,9 @@ curl -LO https://github.com/kubepatch/kubepatch/releases/latest/download/kubepat
 apk add kubepatch_linux_amd64.apk --allow-untrusted
 ```
 
-### Docker images are available at [quay.io/kubepatch/kubepatch](https://quay.io/repository/kubepatch/kubepatch)
+### Docker Images
+
+Pre-build images are available at [quay.io/kubepatch/kubepatch](https://quay.io/repository/kubepatch/kubepatch)
 
 ```bash
 docker pull quay.io/kubepatch/kubepatch:latest
@@ -255,7 +278,9 @@ docker pull quay.io/kubepatch/kubepatch:latest
 
 ---
 
-## ✨ Key Features
+## Architecture
+
+**[`^        back to top        ^`](#table-of-contents)**
 
 ### JSON Patch Only
 
@@ -287,7 +312,7 @@ your base manifests.
 
 Inject common labels (like `env`, `team`, `app`), including deep paths like pod templates and selectors.
 
-### Env Var Substitution (in Patch Values Only)
+### Env Var Substitution
 
 You can inject secrets and configuration values directly into patch files:
 
@@ -306,6 +331,13 @@ Fails if any placeholders remain unexpanded (unset envs, etc...), ensuring deplo
 ```
 kubepatch patch -f base/ -p patches/dev.yaml --envsubst-prefixes='CI_,APP_,IMAGE_'
 ```
+
+## Contributing
+
+**[`^        back to top        ^`](#table-of-contents)**
+
+Contributions are welcomed and greatly appreciated. See [CONTRIBUTING.md](./CONTRIBUTING.md)
+for details on submitting patches and the contribution workflow.
 
 ---
 
