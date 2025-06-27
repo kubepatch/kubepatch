@@ -1,0 +1,54 @@
+postgresql:
+  secret/postgresql:
+    - op: replace
+      path: /stringData
+      value:
+        POSTGRES_USER: "${DB_USER}"
+        POSTGRES_PASSWORD: "${DB_PASSWORD}"
+  statefulset/postgresql:
+    - op: add
+      path: /spec/template/spec/containers/0/env
+      value:
+        - name: TZ
+          value: Asia/Aqtau
+        - name: POSTGRES_INITDB_ARGS
+          value: "--encoding=UTF-8 --lc-collate=en_US.UTF-8 --lc-ctype=en_US.UTF-8"
+  service/postgresql:
+    - op: add
+      path: /spec/ports/0/nodePort
+      value: 30267
+  configmap/postgresql-conf-placeholder:
+    - op: replace
+      path: /metadata/name
+      value: postgresql-conf
+    - op: replace
+      path: /data
+      value:
+        postgresql.conf: |
+          listen_addresses                = '*'
+          port                            = 5432
+          max_connections                 = 250
+          superuser_reserved_connections  = 3
+          log_lock_waits                  = on
+          log_temp_files                  = 0
+          log_checkpoints                 = on
+          log_connections                 = off
+          log_destination                 = 'stderr'
+          log_error_verbosity             = 'DEFAULT'
+          log_min_messages                = 'WARNING'
+          log_hostname                    = off
+          log_timezone                    = 'Asia/Aqtau'
+          log_line_prefix                 = '%t [%p-%l] %r %q%u@%d '
+          datestyle                       = 'iso, mdy'
+          timezone                        = 'Asia/Aqtau'
+  persistentvolumeclaim/postgresql:
+    - op: replace
+      path: /spec
+      value:
+        storageClassName: standard
+        volumeMode: Filesystem
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 32Gi

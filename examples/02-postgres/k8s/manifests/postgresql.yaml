@@ -13,28 +13,21 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgresql-conf-placeholder
-data: {}
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgresql-init-script
-data: {}
+data: { }
 
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: postgresql
-stringData: {}
+stringData: { }
 
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgresql
-spec: {}
+spec: { }
 
 ---
 apiVersion: apps/v1
@@ -56,9 +49,6 @@ spec:
         - name: postgresql-conf
           configMap:
             name: postgresql-conf
-        - name: postgresql-init-script
-          configMap:
-            name: postgresql-init-script
       containers:
         - name: *app
           image: "postgres:17.5-bookworm"
@@ -84,5 +74,3 @@ spec:
               name: dshm
             - mountPath: /etc/postgresql
               name: postgresql-conf
-            - mountPath: /docker-entrypoint-initdb.d
-              name: postgresql-init-script
