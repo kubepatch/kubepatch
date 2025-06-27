@@ -44,8 +44,8 @@ data:
 
 	out, err := Run([]*unstructured.Unstructured{manifest}, patchFile)
 	assert.NoError(t, err)
-	assert.Contains(t, string(out), "app: my-config") // label added
-	assert.Contains(t, string(out), "foo: patched")   // patch applied
+	assert.Contains(t, string(out), "app.kubernetes.io/name: my-config") // label added
+	assert.Contains(t, string(out), "foo: patched")                      // patch applied
 }
 
 func Test_Run_InvalidPatchFormat(t *testing.T) {
