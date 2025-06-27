@@ -37,17 +37,11 @@ func Run(manifests []*unstructured.Unstructured, patchFile FullPatchFile) ([]byt
 				}
 
 				labels.ApplyCommonLabels(doc, map[string]string{
-					"app":                    appName,
 					"app.kubernetes.io/name": appName,
 				})
 
-				// Inject metadata.name patch
-				opsWithName := append([]Operation{}, ops...) // clone to avoid modifying original
-				opsWithName = append(opsWithName, Operation{
-					Op:    "replace",
-					Path:  "/metadata/name",
-					Value: appName,
-				})
+				// Inject metadata.name patch (if it's not already present)
+				opsWithName := injectMetadataName(appName, ops)
 
 				jsonData, err := json.Marshal(doc)
 				if err != nil {
@@ -88,4 +82,24 @@ func Run(manifests []*unstructured.Unstructured, patchFile FullPatchFile) ([]byt
 		buf.Write(out)
 	}
 	return buf.Bytes(), nil
+}
+
+func injectMetadataName(appName string, ops []Operation) []Operation {
+	nameOp := Operation{
+		Op:    "replace",
+		Path:  "/metadata/name",
+		Value: appName,
+	}
+	needsPatch := true
+	for _, o := range ops {
+		if o.Path == "/metadata/name" {
+			needsPatch = false
+			break
+		}
+	}
+	opsWithName := ops
+	if needsPatch {
+		opsWithName = append([]Operation{nameOp}, ops...) // prepend
+	}
+	return opsWithName
 }

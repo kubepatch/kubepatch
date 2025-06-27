@@ -17,7 +17,10 @@ postgresql:
     - op: add
       path: /spec/ports/0/nodePort
       value: 30267
-  configmap/postgresql:
+  configmap/postgresql-conf-placeholder:
+    - op: replace
+      path: /metadata/name
+      value: postgresql-conf
     - op: replace
       path: /data
       value:

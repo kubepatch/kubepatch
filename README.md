@@ -28,6 +28,7 @@
     - [Cross-Environment Deploys](#cross-environment-deploys)
     - [Common Labels Support](#common-labels-support)
     - [Env Var Substitution](#env-var-substitution)
+- [Patch File Format](#patch-file-format)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -145,7 +146,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: myapp-dev
+    app.kubernetes.io/name: myapp-dev
   name: myapp-dev
 spec:
   ports:
@@ -154,24 +155,24 @@ spec:
       protocol: TCP
       targetPort: 8080
   selector:
-    app: myapp-dev
+    app.kubernetes.io/name: myapp-dev
   type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: myapp-dev
+    app.kubernetes.io/name: myapp-dev
   name: myapp-dev
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: myapp-dev
+      app.kubernetes.io/name: myapp-dev
   template:
     metadata:
       labels:
-        app: myapp-dev
+        app.kubernetes.io/name: myapp-dev
     spec:
       containers:
         - env:
@@ -317,6 +318,20 @@ Fails if any placeholders remain unexpanded (unset envs, etc...), ensuring deplo
 
 ```
 kubepatch patch -f base/ -p patches/dev.yaml --envsubst-prefixes='CI_,APP_,IMAGE_'
+```
+
+## Patch-file format
+
+A patch-file is a plain-YAML document that lists JSON-Patch (RFC 6902) operations grouped by application and Kubernetes
+object. The structure is deliberately minimal so you can describe exactly what must change and where,
+without embedding any logic or templates in your base manifests.
+
+```
+<application-name>:                                     # this name will be set for all resources in metadata.name
+  <kind>/<metadata.name>:                               # a base manifest for patching
+    - op: <add|replace|remove|copy|move|test>           # JSON Patch ops
+      path: <JSON-pointer>
+      value: <any Kubernetes-compatible YAML value>
 ```
 
 ## Contributing

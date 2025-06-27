@@ -12,7 +12,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: postgresql
+  name: postgresql-conf-placeholder
 data: { }
 
 ---
@@ -48,7 +48,7 @@ spec:
             medium: Memory
         - name: postgresql-conf
           configMap:
-            name: postgresql
+            name: postgresql-conf
       containers:
         - name: *app
           image: "postgres:17.5-bookworm"
