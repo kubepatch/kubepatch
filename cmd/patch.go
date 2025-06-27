@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/kubepatch/kubepatch/internal/unstr"
 
@@ -13,7 +12,6 @@ import (
 type PatchCmdOptions struct {
 	Filenames        []string
 	PatchFilePath    string
-	Timeout          time.Duration
 	Recursive        bool
 	EnvsubstPrefixes []string
 }
@@ -24,6 +22,28 @@ func NewPatchCmd() *cobra.Command {
 		Use:           "patch",
 		SilenceErrors: true,
 		SilenceUsage:  true,
+		Short:         "Render Kubernetes YAML by overlaying a JSON-patch file",
+		Long: `Patch reads one or more *base* manifests, applies the specified
+JSON-Patch overlay, and prints the rendered manifest set to stdout.
+
+Base manifests remain template-free; all environment-specific changes live
+in the patch file.  The output can be piped straight to kubectl or stored
+for GitOps diffing.`,
+
+		Example: `
+  # Render dev manifests and apply them to the cluster
+  kubepatch patch -f base/ -p patches/dev.yaml | kubectl apply -f -
+
+  # Recursively patch everything under ./k8s and diff against the cluster
+  kubepatch patch -f ./k8s -R -p patches/prod.yaml | kubectl diff -f -
+
+  # Allow ${CI_*} substitutions inside the patch file
+  CI_IMAGE_TAG=1.23.4 \
+  kubepatch patch \
+      -f base/ \
+      -p patches/ci.yaml \
+      --envsubst-prefixes CI_`,
+
 		RunE: func(_ *cobra.Command, _ []string) error {
 			// read manifests
 			manifests, err := unstr.ReadDocs(opts.Filenames, opts.Recursive)
@@ -50,11 +70,10 @@ func NewPatchCmd() *cobra.Command {
 	}
 	cmd.Flags().StringSliceVarP(&opts.Filenames, "filename", "f", nil, "Manifest files, glob patterns, or directories to apply")
 	cmd.Flags().StringVarP(&opts.PatchFilePath, "patchfile", "p", "", "Patch file")
+	cmd.Flags().BoolVarP(&opts.Recursive, "recursive", "R", false, "Recurse into directories specified with --filename.")
 	cmd.Flags().StringSliceVar(&opts.EnvsubstPrefixes, "envsubst-prefixes", nil, "List of prefixes, allowed for envsubst in a patch-file")
 
 	_ = cmd.MarkFlagRequired("filename")  //nolint:errcheck
 	_ = cmd.MarkFlagRequired("patchfile") //nolint:errcheck
-
-	cmd.Flags().BoolVarP(&opts.Recursive, "recursive", "R", false, "Recurse into directories specified with --filename.")
 	return cmd
 }
