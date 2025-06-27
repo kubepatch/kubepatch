@@ -145,7 +145,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: myapp-dev
+    app.kubernetes.io/name: myapp-dev
   name: myapp-dev
 spec:
   ports:
@@ -154,24 +154,24 @@ spec:
       protocol: TCP
       targetPort: 8080
   selector:
-    app: myapp-dev
+    app.kubernetes.io/name: myapp-dev
   type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: myapp-dev
+    app.kubernetes.io/name: myapp-dev
   name: myapp-dev
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: myapp-dev
+      app.kubernetes.io/name: myapp-dev
   template:
     metadata:
       labels:
-        app: myapp-dev
+        app.kubernetes.io/name: myapp-dev
     spec:
       containers:
         - env:
