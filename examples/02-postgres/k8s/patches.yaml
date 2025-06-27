@@ -37,4 +37,15 @@ postgresql:
           log_timezone                    = 'Asia/Aqtau'
           log_line_prefix                 = '%t [%p-%l] %r %q%u@%d '
           datestyle                       = 'iso, mdy'
-          timezone                        = 'Asia/Aqtau'  
+          timezone                        = 'Asia/Aqtau'
+  persistentvolumeclaim/postgresql:
+    - op: replace
+      path: /spec
+      value:
+        storageClassName: standard
+        volumeMode: Filesystem
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 32Gi
