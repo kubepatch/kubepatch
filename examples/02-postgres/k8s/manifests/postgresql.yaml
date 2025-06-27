@@ -1,0 +1,83 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+spec:
+  type: NodePort
+  ports:
+    - port: 5432
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql
+data: { }
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgresql
+stringData: { }
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql
+spec:
+  storageClassName: standard
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 32Gi
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: &app postgresql
+spec:
+  replicas: 1
+  serviceName: *app
+  template:
+    spec:
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: *app
+        - name: dshm
+          emptyDir:
+            medium: Memory
+        - name: postgresql-conf
+          configMap:
+            name: postgresql
+      containers:
+        - name: *app
+          image: "postgres:17.5-bookworm"
+          imagePullPolicy: IfNotPresent
+          terminationMessagePolicy: FallbackToLogsOnError
+          args:
+            - -c
+            - config_file=/etc/postgresql/postgresql.conf
+          envFrom:
+            - secretRef:
+                name: *app
+          resources:
+            limits:
+              cpu: "2"
+              memory: 4Gi
+            requests:
+              cpu: 128m
+              memory: 256Mi
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: storage
+            - mountPath: /dev/shm
+              name: dshm
+            - mountPath: /etc/postgresql
+              name: postgresql-conf

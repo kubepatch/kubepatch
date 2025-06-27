@@ -44,7 +44,7 @@ var labelFieldSpecs = []fieldSpec{
 	{Path: "spec/template/metadata/labels", Create: true, Kind: "ReplicaSet"},
 	{Path: "spec/template/metadata/labels", Create: true, Kind: "DaemonSet"},
 	{Path: "spec/template/metadata/labels", Create: true, Kind: "StatefulSet", Group: "apps"},
-	{Path: "spec/volumeClaimTemplates[]/metadata/labels", Create: true, Kind: "StatefulSet", Group: "apps"},
+	{Path: "spec/volumeClaimTemplates[]/metadata/labels", Create: false, Kind: "StatefulSet", Group: "apps"}, // NOTE:changes
 	{Path: "spec/template/metadata/labels", Create: true, Kind: "Job", Group: "batch"},
 	{Path: "spec/jobTemplate/metadata/labels", Create: true, Kind: "CronJob", Group: "batch"},
 	{Path: "spec/jobTemplate/spec/template/metadata/labels", Create: true, Kind: "CronJob", Group: "batch"},
@@ -75,12 +75,8 @@ var labelFieldSpecs = []fieldSpec{
 
 	// NetworkPolicy
 	{Path: "spec/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
-
-	{Path: "spec/ingress[]/from[]/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
-	{Path: "spec/egress[]/to[]/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
-
-	// {Path: "spec/ingress/from/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
-	// {Path: "spec/egress/to/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
+	{Path: "spec/ingress/from/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
+	{Path: "spec/egress/to/podSelector/matchLabels", Create: false, Kind: "NetworkPolicy", Group: "networking.k8s.io"},
 }
 
 func matchGVK(obj *unstructured.Unstructured, spec fieldSpec) bool {
