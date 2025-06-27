@@ -2,16 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"time"
-
-	"github.com/kubepatch/kubepatch/internal/envs"
 
 	"github.com/kubepatch/kubepatch/internal/unstr"
 
 	"github.com/kubepatch/kubepatch/internal/patch"
-	"sigs.k8s.io/yaml"
-
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +32,7 @@ func NewPatchCmd() *cobra.Command {
 			}
 
 			// read patch-file, subst envs
-			patchFile, err := readPatchFile(opts.PatchFilePath, opts.EnvsubstPrefixes)
+			patchFile, err := patch.ReadPatchFile(opts.PatchFilePath, opts.EnvsubstPrefixes)
 			if err != nil {
 				return err
 			}
@@ -62,29 +57,4 @@ func NewPatchCmd() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&opts.Recursive, "recursive", "R", false, "Recurse into directories specified with --filename.")
 	return cmd
-}
-
-func readPatchFile(patchFilePath string, envsubstPrefixes []string) (patch.FullPatchFile, error) {
-	// read patches
-	patchData, err := os.ReadFile(patchFilePath)
-	if err != nil {
-		return nil, err
-	}
-
-	// subst envs in a patch-file (if opts are set)
-	if len(envsubstPrefixes) > 0 {
-		envsubst := envs.NewEnvsubst([]string{}, envsubstPrefixes, true)
-		patchFileAfterSubst, err := envsubst.SubstituteEnvs(string(patchData))
-		if err != nil {
-			return nil, err
-		}
-		patchData = []byte(patchFileAfterSubst)
-	}
-
-	// unmarshal to struct
-	var patchFile patch.FullPatchFile
-	if err := yaml.Unmarshal(patchData, &patchFile); err != nil {
-		return nil, err
-	}
-	return patchFile, nil
 }

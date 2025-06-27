@@ -1,4 +1,4 @@
-package cmd
+package patch
 
 import (
 	"os"
@@ -18,13 +18,13 @@ func writeTempFile(t *testing.T, content string) string {
 }
 
 func TestReadPatchFile_FileNotFound(t *testing.T) {
-	_, err := readPatchFile("nonexistent.yaml", nil)
+	_, err := ReadPatchFile("nonexistent.yaml", nil)
 	assert.Error(t, err)
 }
 
 func TestReadPatchFile_InvalidYAML(t *testing.T) {
 	path := writeTempFile(t, `invalid: [unclosed`)
-	_, err := readPatchFile(path, nil)
+	_, err := ReadPatchFile(path, nil)
 	assert.Error(t, err)
 }
 
@@ -37,7 +37,7 @@ myapp:
       value: bar
 `
 	path := writeTempFile(t, content)
-	patchFile, err := readPatchFile(path, nil)
+	patchFile, err := ReadPatchFile(path, nil)
 	require.NoError(t, err)
 
 	ops := patchFile["myapp"]["configmap/myconfig"]
@@ -57,7 +57,7 @@ myapp:
       value: ${FOO}
 `
 	path := writeTempFile(t, content)
-	patchFile, err := readPatchFile(path, []string{"FOO"})
+	patchFile, err := ReadPatchFile(path, []string{"FOO"})
 	require.NoError(t, err)
 
 	ops := patchFile["myapp"]["configmap/myconfig"]
@@ -74,6 +74,6 @@ myapp:
       value: ${MISSING_VAR}
 `
 	path := writeTempFile(t, content)
-	_, err := readPatchFile(path, []string{"MISSING_VAR"})
+	_, err := ReadPatchFile(path, []string{"MISSING_VAR"})
 	assert.Error(t, err)
 }
